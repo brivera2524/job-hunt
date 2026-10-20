@@ -1,0 +1,14 @@
+{
+  "name": "brivera-plugins",
+  "description": "Brian Rivera's Claude plugins",
+  "owner": {
+    "name": "Brian Rivera"
+  },
+  "plugins": [
+    {
+      "name": "job-hunt",
+      "source": "./plugins/job-hunt",
+      "description": "An honest, mostly hands-off job search: finds openings on company job boards, Workday, Indeed, ZipRecruiter and Dice twice a day, applies with a resume tailored to each posting and checked against your verified dossier, reads your email to keep the tracker current, and reviews what's working every week."
+    }
+  ]
+}

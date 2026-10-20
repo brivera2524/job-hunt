@@ -1,0 +1,562 @@
+<title>Job Search HQ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one working column. Run status, then the Needs-you queue (sign-ins grouped by account, questions,
+   reviews, other blocks, to-dos), the apply-next queue, pipeline numbers, filters, the job list, and the activity log. */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --ink:#18202b; --muted:#5b6675; --line:#dfe3e9; --soft:#eef1f5;
+  --accent:#2457c5; --accent-ink:#ffffff; --attn:#a35b00; --attn-soft:#fbf1e3;
+  --st-none:#7a8494; --st-needs:#a35b00; --st-applied:#2457c5; --st-screen:#0f7a8a; --st-interview:#7a3fc4; --st-offer:#1d4fb8; --st-rejected:#4a5260; --st-passed:#9aa3af;
+  --fit-strong:#1d4fb8; --fit-possible:#a35b00; --fit-stretch:#6b7380;
+  --font:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#11151b; --surface:#191f27; --ink:#e7ebf1; --muted:#9aa5b4; --line:#2b333e; --soft:#212833;
+  --accent:#6f9bff; --accent-ink:#0d1320; --attn:#f0a43a; --attn-soft:#2e2517;
+  --st-none:#8c96a5; --st-needs:#f0a43a; --st-applied:#6f9bff; --st-screen:#4fc3d1; --st-interview:#b88cff; --st-offer:#8fb1ff; --st-rejected:#a3acb9; --st-passed:#6c7684;
+  --fit-strong:#8fb1ff; --fit-possible:#f0a43a; --fit-stretch:#9aa5b4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151b; --surface:#191f27; --ink:#e7ebf1; --muted:#9aa5b4; --line:#2b333e; --soft:#212833;
+  --accent:#6f9bff; --accent-ink:#0d1320; --attn:#f0a43a; --attn-soft:#2e2517;
+  --st-none:#8c96a5; --st-needs:#f0a43a; --st-applied:#6f9bff; --st-screen:#4fc3d1; --st-interview:#b88cff; --st-offer:#8fb1ff; --st-rejected:#a3acb9; --st-passed:#6c7684;
+  --fit-strong:#8fb1ff; --fit-possible:#f0a43a; --fit-stretch:#9aa5b4; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+header h1{font-size:1.6rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+h2{font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:.86rem;font-weight:600;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn{font:inherit;font-size:.82rem;font-weight:600;padding:6px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.small{font-size:.75rem;padding:2px 9px;border-radius:999px}
+.btn:disabled{opacity:.5;cursor:default}
+.linkbtn{font:inherit;font-size:.78rem;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+/* run status strip */
+.runstrip{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.runstrip b{color:var(--ink);font-weight:600}
+.runstrip .warn{color:var(--attn);font-weight:600}
+/* needs-you */
+.needs{background:var(--attn-soft);border:1px solid var(--attn);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+.needs>h2{color:var(--attn);margin:0}
+.needs .chips{display:flex;flex-wrap:wrap;gap:6px}
+.needs .chips button{font:inherit;font-size:.8rem;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid var(--attn);background:transparent;color:var(--attn);cursor:pointer}
+.needs .chips button[aria-pressed="true"]{background:var(--attn);color:var(--surface)}
+.sec{display:flex;flex-direction:column;gap:8px}
+.sec .lead{font-size:.86rem;margin:0;color:var(--ink)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.card .hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.card .hd b{font-size:.98rem}
+.card .sys{font-size:.75rem;color:var(--muted);letter-spacing:.03em;text-transform:uppercase}
+.card .tag{font-size:.72rem;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--attn-soft);color:var(--attn)}
+.card .mix{font-size:.84rem;color:var(--muted)}
+.card .mix b{font-weight:600}
+.card .tip{font-size:.8rem;color:var(--muted);margin:0}
+.card .acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.card details{font-size:.84rem}
+.card details summary{cursor:pointer;color:var(--muted)}
+.card ul.jl{margin:6px 0 0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.card ul.jl li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.card ul.jl a{color:var(--ink)}
+.card label.q{font-size:.86rem;font-weight:600;display:block;margin-top:2px}
+.card textarea{width:100%;font:inherit;font-size:.86rem;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical;min-height:54px}
+.card .why{font-size:.84rem;color:var(--muted);margin:0}
+.card .chk{font-size:.8rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+.more{font-size:.84rem;color:var(--muted)}
+/* queue */
+.queue{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.queue ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:.88rem}
+.queue li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.queue a{color:var(--ink)}
+.queue p{margin:0;font-size:.82rem;color:var(--muted)}
+.tally{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.tile:hover{border-color:var(--muted)}
+.tile[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:-1px}
+.tile .n{font-family:var(--mono);font-size:1.3rem;font-weight:600;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.72rem;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.rates{font-size:.86rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 16px}
+.rates b{color:var(--ink);font-variant-numeric:tabular-nums}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-size:.82rem;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.row2{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row2 input[type=search],.row2 select{font:inherit;font-size:.85rem;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.row2 input[type=search]{flex:1 1 200px;min-width:0}
+.row2 label{font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.count{font-size:.82rem;color:var(--muted);margin:0}
+.list{display:flex;flex-direction:column;gap:8px}
+.job{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:start}
+.job.dim{opacity:.6}
+.job h3{margin:0;font-size:1rem;font-weight:600;line-height:1.3}
+.job h3 a{color:var(--ink);text-decoration:none}
+.job h3 a:hover{text-decoration:underline;color:var(--accent)}
+.job h3 .co{color:var(--muted);font-weight:500}
+.meta{font-size:.84rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.note{font-size:.86rem;margin:2px 0 0}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.pill{font-size:.72rem;font-weight:600;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor}
+.fit-Strong{color:var(--fit-strong)} .fit-Possible{color:var(--fit-possible)} .fit-Stretch{color:var(--fit-stretch)}
+.pill.top{color:var(--accent);background:var(--soft);border-color:transparent}
+.pill.plain{color:var(--muted);border-color:var(--line)}
+.pill.q{color:var(--accent);border-color:var(--accent)}
+.side{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:170px}
+.side select{font:inherit;font-size:.85rem;font-weight:600;padding:6px 8px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.side .when{font-size:.75rem;color:var(--muted);text-align:right}
+.extra{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
+.extra textarea{width:100%;font:inherit;font-size:.85rem;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical;min-height:34px}
+.extra details{font-size:.82rem;color:var(--muted)}
+.extra details ol{margin:4px 0 0;padding-left:18px}
+.list.compact .job{padding:8px 12px}
+.list.compact .note,.list.compact .extra,.list.compact .meta,.list.compact .side .when{display:none}
+textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:24px 18px;text-align:center;color:var(--muted)}
+.banner{background:var(--soft);border-radius:8px;padding:8px 12px;font-size:.85rem;color:var(--muted)}
+.runs{display:flex;flex-direction:column;gap:8px}
+.run{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.run .top{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.run .kind{font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+.run .date{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.run p{margin:4px 0 0;font-size:.88rem}
+.run ul{margin:4px 0 0;padding-left:18px;font-size:.85rem}
+.run .prob{color:var(--attn)}
+@media (max-width:640px){.job{grid-template-columns:minmax(0,1fr)}.side{min-width:0;flex-direction:row;align-items:center;flex-wrap:wrap}.side select{flex:1}.side .when{text-align:left}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 id="title">Job Search HQ</h1>
+    <p id="subtitle">Every job you're tracking, what needs you, and what the runs did. Changes and buttons here save automatically; the next run picks them up.</p>
+  </header>
+
+  <div class="runstrip" id="runstrip" aria-label="Run status"></div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-jobs" aria-selected="true">Jobs</button>
+    <button role="tab" id="tab-runs" aria-selected="false">Activity</button>
+  </div>
+
+  <section id="view-jobs" style="display:flex;flex-direction:column;gap:14px">
+    <div class="banner" id="banner" hidden></div>
+    <div class="needs" id="needs" hidden>
+      <h2 id="needsTitle">Needs you</h2>
+      <div class="chips" id="needsChips" role="group" aria-label="Kinds of things that need you"></div>
+      <div id="needsBody"></div>
+    </div>
+    <div class="queue" id="queue" hidden>
+      <h2 id="queueTitle" style="margin:0">Apply next</h2>
+      <p>Queued for the next application run, in this order. Say "apply to my queue" to start one now.</p>
+      <ul id="queueList"></ul>
+    </div>
+    <div class="tally" id="tally" aria-label="Status counts"></div>
+    <div class="rates" id="rates"></div>
+    <div class="bar">
+      <div class="seg" id="laneSeg" role="group" aria-label="Lane"></div>
+      <div class="row2">
+        <input type="search" id="q" placeholder="Search company, title, notes" aria-label="Search">
+        <select id="region" aria-label="Location"><option value="all">All locations</option></select>
+        <select id="fit" aria-label="Fit"><option value="all">Any fit</option><option>Strong</option><option>Possible</option><option>Stretch</option></select>
+        <label><input type="checkbox" id="hideClosed"> Hide rejected and passed</label>
+        <label><input type="checkbox" id="compact"> Compact</label>
+      </div>
+    </div>
+    <p class="count" id="count"></p>
+    <div class="list" id="list"><div class="empty" id="loading">Loading your jobs…</div></div>
+  </section>
+
+  <section id="view-runs" hidden>
+    <h2>Recent activity</h2>
+    <div class="runs" id="runs"><div class="empty">Job searches, email checks and application runs log here after they run.</div></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const STATUSES=["Not applied","Needs you","Applied","Screening","Interviewing","Offer","Rejected","Passed"];
+  const ST_COLOR={"Not applied":"--st-none","Needs you":"--st-needs","Applied":"--st-applied","Screening":"--st-screen","Interviewing":"--st-interview","Offer":"--st-offer","Rejected":"--st-rejected","Passed":"--st-passed"};
+  const RESPONDED=new Set(["Screening","Interviewing","Offer","Rejected"]);
+  const OPEN=new Set(["Not applied","Needs you"]);
+  const FITS=["Strong","Possible","Stretch"];
+  const RUN_KINDS=["Job search","Email check","Applications","Weekly review"];
+  // Which account a posting needs. Mirrors account_for() in jobfeed.py; a job's own `account` field wins.
+  const ACCOUNT_RULES=[
+    [/\/\/([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com/i,m=>"workday:"+m[1].toLowerCase()],
+    [/myworkdaysite\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?recruiting\/([^/?#]+)/i,m=>"workday:"+m[1].toLowerCase()],
+    [/jobs\.apple\.com/i,()=>"apple"],
+    [/\/\/([a-z0-9-]+)\.icims\.com/i,m=>"icims:"+m[1].toLowerCase()],
+    [/(?:ultipro|ukg)\.com\/([A-Za-z0-9]+)/i,m=>"ukg:"+m[1].toLowerCase()],
+    [/\/\/([a-z0-9-]+)\.taleo\.net/i,m=>"taleo:"+m[1].toLowerCase()],
+    [/\/\/([a-z0-9-]+)\.[a-z0-9.-]*oraclecloud\.com/i,m=>"oracle:"+m[1].toLowerCase()],
+    [/successfactors\.[a-z]+\/.*?company=([A-Za-z0-9_]+)/i,m=>"sf:"+m[1].toLowerCase()],
+    [/dayforcehcm\.com\/(?:CandidatePortal\/)?[a-z]{2}-[A-Z]{2}\/([^/?#]+)/i,m=>"dayforce:"+m[1].toLowerCase()],
+    [/adp\.com\/.*?[?&]cid=([0-9a-f-]+)/i,m=>"adp:"+m[1].toLowerCase()],
+    [/myjobs\.adp\.com\/([^/?#]+)/i,m=>"adp:"+m[1].toLowerCase()],
+    [/adp\.com\/.*?[?&]c=(\d+)/i,m=>"adp:"+m[1]],
+    [/smartrecruiters\.com/i,()=>"smartrecruiters"]];
+  const SYSTEMS={workday:["Workday","Open a posting, click Apply, then Apply Manually, then Create Account. Each company's Workday is a separate account."],
+    apple:["Apple ID","Sign in at jobs.apple.com with your Apple ID. One sign-in covers every Apple job."],
+    icims:["iCIMS","Open a posting, click Apply, and create an account."],
+    ukg:["UKG","Open a posting, click Apply, and create an account."],
+    taleo:["Taleo","Open a posting, click Apply, and create a new account."],
+    oracle:["Oracle","Open a posting, click Apply, and enter your email. Oracle sends a one-time code."],
+    sf:["SuccessFactors","Open a posting, click Apply, and create an account."],
+    dayforce:["Dayforce","Open a posting, click Apply, and create an account."],
+    adp:["ADP","Open a posting, click Apply, and create an account."],
+    smartrecruiters:["SmartRecruiters","One SmartRecruiters account works for every company that uses it."],
+    site:["Account","Open a posting, click Apply, and create an account."]};
+  const JOB_BOARDS=/linkedin\.com|indeed\.com|ziprecruiter\.com|dice\.com|glassdoor\.com|builtin\.com/i;
+  let LANES={}; let REGIONS={};
+  let jobs=[],runs=[],lastRun={},accounts={},db=null,ready=false,cfg={};
+  const drafts={};const noteDrafts={};const noteTimers={};const busy=new Set();
+  const state={lane:"all",region:"all",fit:"all",q:"",hideClosed:false,compact:false,status:null,tab:"jobs",needsTab:null};
+  try{Object.assign(state,JSON.parse(localStorage.getItem("hq-filters")||"{}"))}catch(e){}
+  const $=id=>document.getElementById(id);
+  const save=()=>{try{localStorage.setItem("hq-filters",JSON.stringify(state))}catch(e){}};
+  const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+  const daysAgo=s=>{if(!s)return 1e9;const [y,m,d]=s.slice(0,10).split("-").map(Number);return Math.floor((new Date(today()+"T00:00")-new Date(y,m-1,d))/864e5)};
+  const fmtDate=s=>{if(!s)return"";const [y,m,d]=s.slice(0,10).split("-").map(Number);return new Date(y,m-1,d).toLocaleDateString(undefined,{month:"short",day:"numeric"})};
+  const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e};
+  const hist=(j,status,evidence)=>[...(Array.isArray(j.history)?j.history:[]),{date:today(),status,source:"you",evidence}];
+  const fitRank=j=>j.fitRank??(FITS.indexOf(j.fit)<0?1:FITS.indexOf(j.fit));
+  const link=(href,txt)=>{const a=el("a",null,txt);a.href=href||"#";a.target="_blank";a.rel="noopener";return a};
+
+  function accountKey(j){
+    if(j.account)return j.account;
+    for(const [rx,f] of ACCOUNT_RULES){const m=(j.url||"").match(rx);if(m)return f(m)}
+    // A job-board link is not an account: the employer's own posting still has to be found.
+    if(j.applyRoute==="needs_account"&&!JOB_BOARDS.test(j.url||"")){try{return "site:"+new URL(j.url).host.toLowerCase()}catch(e){}}
+    return null;
+  }
+  // Key for grouping a held sign-in job: its account, else its own site, else the job alone. Never a shared catch-all.
+  function groupKey(j){
+    const k=accountKey(j);if(k)return k;
+    try{const h=new URL(j.url).host.toLowerCase();if(h&&!JOB_BOARDS.test(h))return "site:"+h}catch(e){}
+    return "job:"+j.id;
+  }
+  const systemOf=key=>SYSTEMS[(key||"site").split(":")[0]]||SYSTEMS.site;
+  // What kind of help a Needs-you job is waiting for. Older jobs have no needsKind, so infer it from the reason.
+  function needsKind(j){
+    if(j.needsKind)return j.needsKind;
+    const r=(j.needsReason||"").toLowerCase();
+    if(/sign[ -]?in|log ?in|account/.test(r)||(j.applyRoute==="needs_account"&&!r))return "account";
+    if(/^ready to submit/.test(r))return "review";
+    if(/captcha|bot check|verification/.test(r))return "other";
+    return "question";
+  }
+  // Open questions on a job. A job re-held after its questions were answered falls back to its reason.
+  function questionsOf(j){
+    const qs=Array.isArray(j.questions)?j.questions:[];
+    if(qs.some(q=>!q.a))return qs;
+    const r=j.needsReason||"What should Claude know to finish this application?";
+    return [...qs,{id:"r"+(qs.length+1),key:"reason:"+r.slice(0,60),q:r}];
+  }
+
+  function setTab(t){state.tab=t;save();$("tab-jobs").setAttribute("aria-selected",t==="jobs");$("tab-runs").setAttribute("aria-selected",t==="runs");$("view-jobs").style.display=t==="jobs"?"flex":"none";$("view-runs").hidden=t!=="runs"}
+  $("tab-jobs").onclick=()=>setTab("jobs");$("tab-runs").onclick=()=>setTab("runs");
+
+  function buildControls(){
+    const seg=$("laneSeg");seg.textContent="";
+    [["all","All"],["top","Apply first"],...Object.entries(LANES).sort((a,b)=>(a[0]==="0")-(b[0]==="0")||a[0].localeCompare(b[0]))].forEach(([v,l])=>{const b=el("button",null,l);b.type="button";b.dataset.v=v;b.onclick=()=>{state.lane=v;save();render()};seg.appendChild(b)});
+    const r=$("region");[...r.querySelectorAll("option:not([value=all])")].forEach(o=>o.remove());
+    Object.entries(REGIONS).forEach(([v,l])=>{const o=el("option",null,l);o.value=v;r.appendChild(o)});
+    $("q").value=state.q;r.value=REGIONS[state.region]||state.region==="all"?state.region:"all";$("fit").value=state.fit;$("hideClosed").checked=state.hideClosed;$("compact").checked=state.compact;
+  }
+  $("q").addEventListener("input",e=>{state.q=e.target.value;save();render()});
+  $("region").onchange=e=>{state.region=e.target.value;save();render()};
+  $("fit").onchange=e=>{state.fit=e.target.value;save();render()};
+  $("hideClosed").onchange=e=>{state.hideClosed=e.target.checked;save();render()};
+  $("compact").onchange=e=>{state.compact=e.target.checked;save();render()};
+
+  function banner(m){const b=$("banner");b.textContent=m;b.hidden=!m}
+  // Writes to several jobs at once: each document gets one write, and the buttons stay disabled until all land.
+  async function writeJobs(key,pairs,extra){
+    if(!db||busy.has(key))return false;busy.add(key);render();let ok=false;
+    try{if(extra)await extra();await Promise.all(pairs.map(([j,patch])=>db.doc("jobs/"+j.id).update(patch)));banner("");ok=true}
+    catch(e){banner("That didn't save ("+((e&&e.code)||"error")+"). Reload the page and try again.")}
+    finally{busy.delete(key);render()}
+    return ok;
+  }
+  const actBtn=(label,cls,key,fn)=>{const b=el("button","btn"+(cls?" "+cls:""),busy.has(key)?"Saving…":label);b.type="button";b.disabled=!db||busy.has(key);b.onclick=fn;return b};
+
+  // ---------- run status ----------
+  function renderRunStrip(){
+    const box=$("runstrip");box.textContent="";if(!runs.length&&!(cfg.schedule||[]).length)return;
+    const sched=Array.isArray(cfg.schedule)?cfg.schedule:[];
+    RUN_KINDS.forEach(k=>{
+      const last=lastRun[k]||runs.find(r=>r.kind===k);const s=sched.find(x=>x.kind===k);if(!last&&!s)return;
+      const span=el("span");span.appendChild(el("b",null,k+": "));
+      const never0=s&&!last&&cfg.scheduleSince&&daysAgo(cfg.scheduleSince)>(s.maxGapDays||1);
+      span.append(last?("last "+fmtDate(last.date)+(last.time?" "+last.time:"")):(never0?"":"hasn't run yet"));
+      const probs=last&&Array.isArray(last.problems)?last.problems.length:0;
+      const late=s&&s.maxGapDays&&last&&daysAgo(last.date)>s.maxGapDays;
+      const never=s&&!last&&cfg.scheduleSince&&daysAgo(cfg.scheduleSince)>(s.maxGapDays||1);
+      if(probs){span.append(" ");span.appendChild(el("span","warn",probs+" problem"+(probs>1?"s":"")))}
+      if(late){span.append(" ");span.appendChild(el("span","warn","hasn't run in "+daysAgo(last.date)+" days"))}
+      if(never){span.append(" ");span.appendChild(el("span","warn","no run logged since "+fmtDate(cfg.scheduleSince)))}
+      if(s&&s.when)span.append(" · "+s.when+(s.note?" ("+s.note+")":""));
+      box.appendChild(span)});
+  }
+
+  // ---------- needs you ----------
+  function needsGroups(){
+    const open=jobs.filter(j=>OPEN.has(j.status||"Not applied"));
+    const acct={},questions={},review=[],other=[];
+    open.forEach(j=>{
+      if(j.status==="Needs you"){
+        const k=needsKind(j);
+        if(k==="account"){const key=groupKey(j);(acct[key]=acct[key]||[]).push(j)}
+        else if(k==="review")review.push(j);
+        else if(k==="question"){const co=j.company||"Unknown company";(questions[co]=questions[co]||[]).push(j)}
+        else other.push(j);
+      }else if(j.applyRoute==="needs_account"&&!j.queued){
+        // Not tried yet, but it will need a sign-in: surface the account now so sign-ups can be batched.
+        const key=accountKey(j);const st=(accounts[key]||{}).status;if(key&&st!=="ready"&&st!=="skipped")(acct[key]=acct[key]||[]).push(j);
+      }
+    });
+    const todos=jobs.filter(j=>j.actionNeeded).sort((a,b)=>(a.actionDue||"9999").localeCompare(b.actionDue||"9999"));
+    const acctList=Object.entries(acct).map(([key,js])=>({key,jobs:js.sort((a,b)=>fitRank(a)-fitRank(b)),best:Math.min(...js.map(fitRank))}))
+      .sort((a,b)=>b.jobs.length-a.jobs.length||a.best-b.best||String(a.jobs[0].company||"").localeCompare(String(b.jobs[0].company||"")));
+    return {acct:acctList,questions:Object.entries(questions),review,other,todos};
+  }
+  function fitMix(js){const m=el("span","mix");const c={};js.forEach(j=>c[j.fit||"Possible"]=(c[j.fit||"Possible"]||0)+1);
+    m.append("Opens "+js.length+" job"+(js.length>1?"s":"")+": ");FITS.filter(f=>c[f]).forEach((f,i)=>{if(i)m.append(" · ");m.appendChild(el("b","fit-"+f,c[f]+" "+f))});return m}
+  function jobLine(j,withSkip,key){
+    const li=el("li");li.appendChild(link(j.url,j.title));
+    if(j.fit)li.appendChild(el("span","pill fit-"+j.fit,j.fit));
+    if(j.location)li.appendChild(el("span","more",j.location));
+    if(withSkip){const s=el("button","linkbtn","skip this one");s.type="button";s.disabled=!db||busy.has(key);
+      s.onclick=()=>writeJobs(key,[[j,{status:"Passed",statusUpdatedOn:today(),needsKind:"",queued:false,approved:false,history:hist(j,"Passed","Skipped from the Needs-you list")}]]);li.appendChild(s)}
+    return li;
+  }
+
+  function accountCard(g){
+    const [sys,tip]=systemOf(g.key);const a=accounts[g.key]||{};const key="acct:"+g.key;
+    // Some accounts (SmartRecruiters) cover many companies: name the card after the system then.
+    const cos=[...new Set(g.jobs.map(j=>j.company||"Unknown company"))];const multi=cos.length>1;
+    const name=multi?sys:(a.name||cos[0]);
+    const c=el("div","card");const hd=el("div","hd");hd.appendChild(el("b",null,name));hd.appendChild(el("span","sys",sys));
+    if(a.status==="expired")hd.appendChild(el("span","tag","Signed out: sign in again"));
+    if(a.status==="ready"&&g.jobs.some(j=>j.status==="Needs you"))hd.appendChild(el("span","tag","Claude hit a sign-in screen"));
+    c.appendChild(hd);if(multi)c.appendChild(el("span","mix","Covers "+cos.join(", ")));c.appendChild(fitMix(g.jobs));
+    c.appendChild(el("p","tip",tip));
+    const acts=el("div","acts");
+    const open=link(g.jobs[0].url,(a.status==="expired"?"Open sign-in page":"Open sign-up page")+" ↗");open.className="btn ghost";acts.appendChild(open);
+    acts.appendChild(actBtn("Account ready","",key,()=>{
+      const pairs=g.jobs.map(j=>[j,Object.assign({status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:false,history:hist(j,"Not applied","Account ready ("+sys+"): queued to apply")},/^(site|job):/.test(g.key)&&!j.account?{}:{account:g.key})]);
+      writeJobs(key,pairs,g.key.startsWith("job:")?null:()=>db.doc("accounts/"+g.key).set({key:g.key,name,system:sys,status:"ready",readyOn:today(),url:g.jobs[0].url||""}))}));
+    acts.appendChild(actBtn(multi?"Skip all":"Skip company","ghost",key,()=>{
+      const pairs=g.jobs.map(j=>[j,{status:"Passed",statusUpdatedOn:today(),needsKind:"",queued:false,approved:false,history:hist(j,"Passed","Skipped: didn't want "+(multi?"a ":"a "+name+" ")+sys+" account")}]);
+      writeJobs(key,pairs,g.key.startsWith("job:")?null:()=>db.doc("accounts/"+g.key).set({key:g.key,name,system:sys,status:"skipped",skippedOn:today()}))}));
+    c.appendChild(acts);
+    const d=el("details");d.appendChild(el("summary",null,"Show the "+g.jobs.length+" job"+(g.jobs.length>1?"s":"")));const ul=el("ul","jl");g.jobs.forEach(j=>ul.appendChild(jobLine(j,true,key)));d.appendChild(ul);c.appendChild(d);
+    return c;
+  }
+
+  function questionCard([company,js]){
+    const key="q:"+company;const c=el("div","card");const hd=el("div","hd");hd.appendChild(el("b",null,company));
+    hd.appendChild(el("span","sys",js.length>1?js.length+" applications, same questions answered once":"1 application"));c.appendChild(hd);
+    const ul=el("ul","jl");js.forEach(j=>ul.appendChild(jobLine(j,false)));c.appendChild(ul);
+    // One box per distinct question across this company's jobs.
+    const qs=[];const seen=new Set();js.forEach(j=>questionsOf(j).forEach(q=>{const k=q.key||q.q;if(!seen.has(k)&&!q.a){seen.add(k);qs.push(q)}}));
+    qs.forEach((q,i)=>{const id="qa-"+company.replace(/\W+/g,"_")+"-"+i;const dk=company+"|"+(q.key||q.q);
+      const lab=el("label","q",q.q);lab.htmlFor=id;const ta=el("textarea");ta.id=id;ta.rows=2;ta.value=drafts[dk]||"";ta.placeholder="Your answer, in your own words. Claude uses it as written.";
+      ta.disabled=!db;ta.addEventListener("input",()=>{drafts[dk]=ta.value});c.append(lab,ta)});
+    if(!qs.length){c.appendChild(el("p","why","Every question here is answered."));const acts0=el("div","acts");
+      acts0.appendChild(actBtn("Done, try again","",key,()=>writeJobs(key,js.map(j=>[j,{status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:false,history:hist(j,"Not applied","Marked done")}]))));c.appendChild(acts0);return c}
+    const chkL=el("label","chk");const chk=el("input");chk.type="checkbox";chk.checked=drafts["bank|"+company]!==false;chk.onchange=()=>{drafts["bank|"+company]=chk.checked};
+    chkL.append(chk,"Also add these answers to my answer bank");c.appendChild(chkL);
+    const acts=el("div","acts");
+    acts.appendChild(actBtn("Save answers","",key,()=>{
+      const toBank=drafts["bank|"+company]!==false;let any=false;
+      const pairs=js.map(j=>{const qs2=questionsOf(j).map(q=>{const v=(drafts[company+"|"+(q.key||q.q)]||"").trim();if(!q.a&&v){any=true;return Object.assign({},q,{a:v,answeredOn:today(),toBank})}return q});
+        const done=qs2.every(q=>q.a);const patch={questions:qs2};
+        if(done)Object.assign(patch,{status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,history:hist(j,"Not applied","Answered: "+qs2.map(q=>q.q).join("; ").slice(0,160))});
+        return [j,patch]});
+      if(!any){banner("Type an answer first.");return}
+      writeJobs(key,pairs).then(ok=>{if(ok)qs.forEach(q=>delete drafts[company+"|"+(q.key||q.q)])})}));
+    acts.appendChild(actBtn(js.length>1?"Skip these jobs":"Skip this job","ghost",key,()=>writeJobs(key,js.map(j=>[j,{status:"Passed",statusUpdatedOn:today(),needsKind:"",queued:false,approved:false,history:hist(j,"Passed","Skipped instead of answering")}]))));
+    c.appendChild(acts);return c;
+  }
+
+  function simpleCard(j,kind){
+    const key="j:"+j.id;const c=el("div","card");const hd=el("div","hd");const b=el("b");b.appendChild(link(j.url,j.company+" · "+j.title));hd.appendChild(b);if(j.fit)hd.appendChild(el("span","pill fit-"+j.fit,j.fit));c.appendChild(hd);
+    if(j.needsReason)c.appendChild(el("p","why",j.needsReason));
+    const acts=el("div","acts");
+    if(kind==="review"){
+      acts.appendChild(actBtn("Approve submit","",key,()=>writeJobs(key,[[j,{status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:true,history:hist(j,"Not applied","Approved to submit")}]])));
+      c.appendChild(el("p","tip","The prepared answers are in this job's notes in the list below."));
+    }else{
+      acts.appendChild(actBtn("Done, try again","",key,()=>writeJobs(key,[[j,{status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:false,history:hist(j,"Not applied","Marked done: "+(j.needsReason||""))}]])));
+      acts.appendChild(actBtn("I applied myself","ghost",key,()=>writeJobs(key,[[j,{status:"Applied",appliedOn:j.appliedOn||today(),statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:false,approved:false,history:hist(j,"Applied","Applied by you")}]])));
+    }
+    acts.appendChild(actBtn("Skip","ghost",key,()=>writeJobs(key,[[j,{status:"Passed",statusUpdatedOn:today(),needsKind:"",queued:false,approved:false,history:hist(j,"Passed","Skipped from the Needs-you list")}]])));
+    c.appendChild(acts);return c;
+  }
+  function todoCard(j){
+    const key="t:"+j.id;const c=el("div","card");const hd=el("div","hd");const b=el("b");b.appendChild(link(j.url,j.company+" · "+j.title));hd.appendChild(b);hd.appendChild(el("span","sys",j.status));c.appendChild(hd);
+    c.appendChild(el("p","why",j.actionNeeded+(j.actionDue?" (by "+fmtDate(j.actionDue)+")":"")));
+    const acts=el("div","acts");acts.appendChild(actBtn("Done","",key,()=>writeJobs(key,[[j,{actionNeeded:"",actionDue:"",history:hist(j,j.status,"Marked done: "+j.actionNeeded)}]])));c.appendChild(acts);return c;
+  }
+
+  function renderNeeds(){
+    const g=needsGroups();const box=$("needs");
+    const acctJobs=g.acct.reduce((n,x)=>n+x.jobs.length,0);const qJobs=g.questions.reduce((n,x)=>n+x[1].length,0);
+    const sections=[
+      ["acct","Sign-ins",g.acct.length?g.acct.length+" account"+(g.acct.length>1?"s":"")+" · "+acctJobs+" jobs":"",g.acct.length],
+      ["q","Questions",qJobs?String(qJobs):"",qJobs],
+      ["review","Ready to submit",String(g.review.length),g.review.length],
+      ["other","Other blocks",String(g.other.length),g.other.length],
+      ["todo","To-dos",String(g.todos.length),g.todos.length]].filter(s=>s[3]);
+    box.hidden=!ready||!sections.length;if(box.hidden)return;
+    if(!sections.some(s=>s[0]===state.needsTab))state.needsTab=sections[0][0];
+    $("needsTitle").textContent="Needs you";
+    const chips=$("needsChips");chips.textContent="";
+    sections.forEach(([id,label,n])=>{const b=el("button",null,label+(n?" · "+n:""));b.type="button";b.setAttribute("aria-pressed",state.needsTab===id?"true":"false");b.onclick=()=>{state.needsTab=id;save();render()};chips.appendChild(b)});
+    const body=$("needsBody");body.textContent="";const sec=el("div","sec");
+    if(state.needsTab==="acct"){
+      sec.appendChild(el("p","lead","Make each account once and every job behind it is queued to apply. Biggest payoff first. Use the same email everywhere, let a password manager make the passwords, and sign in with the same Chrome that Claude applies in."));
+      g.acct.forEach(x=>sec.appendChild(accountCard(x)));
+    }else if(state.needsTab==="q"){
+      sec.appendChild(el("p","lead","Questions only you can answer. Once every question on a job is answered, it's queued to apply."));
+      g.questions.forEach(x=>sec.appendChild(questionCard(x)));
+    }else if(state.needsTab==="review"){
+      sec.appendChild(el("p","lead","Filled and checked against your dossier, waiting for your OK."));g.review.forEach(j=>sec.appendChild(simpleCard(j,"review")));
+    }else if(state.needsTab==="other"){
+      sec.appendChild(el("p","lead","Things Claude can't do for you, like a CAPTCHA or a job only on a job board. Do it and click Done to queue the job again, or apply yourself and say so."));g.other.forEach(j=>sec.appendChild(simpleCard(j,"other")));
+    }else{
+      sec.appendChild(el("p","lead","Follow-ups on jobs you've already applied to."));g.todos.forEach(j=>sec.appendChild(todoCard(j)));
+    }
+    body.appendChild(sec);
+  }
+
+  function renderQueue(){
+    const q=jobs.filter(j=>j.queued&&j.status==="Not applied").sort((a,b)=>(a.approved?0:1)-(b.approved?0:1)||fitRank(a)-fitRank(b));
+    const box=$("queue");box.hidden=!ready||!q.length;if(box.hidden)return;
+    $("queueTitle").textContent="Apply next · "+q.length;const ul=$("queueList");ul.textContent="";
+    q.slice(0,30).forEach(j=>{const li=el("li");li.appendChild(link(j.url,j.company+" · "+j.title));if(j.fit)li.appendChild(el("span","pill fit-"+j.fit,j.fit));
+      if(j.approved)li.appendChild(el("span","pill plain","Approved"));
+      const key="u:"+j.id;const r=el("button","linkbtn","remove");r.type="button";r.disabled=!db||busy.has(key);r.onclick=()=>writeJobs(key,[[j,{queued:false,approved:false}]]);li.appendChild(r);ul.appendChild(li)});
+    if(q.length>30)ul.appendChild(el("li","more","and "+(q.length-30)+" more"));
+  }
+
+  function renderTop(){
+    const c={};STATUSES.forEach(s=>c[s]=0);jobs.forEach(j=>c[j.status||"Not applied"]=(c[j.status||"Not applied"]||0)+1);
+    const t=$("tally");t.textContent="";
+    STATUSES.forEach(s=>{
+      const b=el("button","tile");b.type="button";b.setAttribute("aria-pressed",state.status===s?"true":"false");
+      const n=el("span","n",ready?c[s]:"–");const l=el("span","l");const d=el("span","dot");d.style.background="var("+ST_COLOR[s]+")";l.append(d,s);b.append(n,l);
+      b.onclick=()=>{state.status=state.status===s?null:s;save();render()};t.appendChild(b);
+    });
+    const applied=jobs.filter(j=>j.appliedOn);const resp=applied.filter(j=>RESPONDED.has(j.status));const intv=applied.filter(j=>["Screening","Interviewing","Offer"].includes(j.status));
+    const week=applied.filter(j=>daysAgo(j.appliedOn)<=6).length;const goal=cfg.weeklyGoal||10;
+    const ghost=applied.filter(j=>j.status==="Applied"&&daysAgo(j.appliedOn)>=30).length;
+    const r=$("rates");r.textContent="";
+    const add=(label,val)=>{const s=el("span");s.append(label+" ");s.appendChild(el("b",null,ready?val:"–"));r.appendChild(s)};
+    add("Applied this week:",week+" of "+goal);add("Response rate:",applied.length?Math.round(resp.length/applied.length*100)+"%":"–");add("Screens or interviews:",String(intv.length));add("No reply after 30 days:",String(ghost));
+  }
+
+  function matches(j){
+    if(state.lane==="top"&&!j.top)return false;
+    if(!["all","top"].includes(state.lane)&&String(j.lane)!==state.lane)return false;
+    if(state.region!=="all"&&j.region!==state.region)return false;
+    if(state.fit!=="all"&&j.fit!==state.fit)return false;
+    if(state.status&&(j.status||"Not applied")!==state.status)return false;
+    if(state.hideClosed&&(j.status==="Rejected"||j.status==="Passed"))return false;
+    if(state.q){const q=state.q.toLowerCase();if(![j.company,j.title,j.note,j.notes,j.location].join(" ").toLowerCase().includes(q))return false}
+    return true;
+  }
+  const sortKey=j=>[j.status==="Needs you"?0:1,j.queued&&j.status==="Not applied"?0:1,j.top?0:1,fitRank(j),-(Date.parse(j.foundOn||"2000-01-01")||0)/1e9,j.order??9999];
+  const cmp=(a,b)=>{const x=sortKey(a),y=sortKey(b);for(let i=0;i<x.length;i++)if(x[i]!==y[i])return x[i]-y[i];return 0};
+
+  function jobEl(j){
+    const e=el("article","job"+((j.status==="Rejected"||j.status==="Passed")?" dim":""));
+    const main=el("div");const h=el("h3");const a=link(j.url,"");a.textContent="";a.append(el("span","co",j.company+" · "),j.title);h.appendChild(a);
+    const meta=el("div","meta");[j.location,j.pay&&j.pay!=="Not listed"?j.pay:"Pay not listed",j.years&&("Asks: "+j.years),j.source&&("Found via "+j.source)].filter(Boolean).forEach(t=>meta.appendChild(el("span",null,t)));
+    main.append(h,meta);if(j.note)main.appendChild(el("p","note",j.note));
+    const pills=el("div","pills");if(j.top)pills.appendChild(el("span","pill top","Apply first"));if(j.fit)pills.appendChild(el("span","pill fit-"+j.fit,j.fit));pills.appendChild(el("span","pill plain",LANES[j.lane]||"Other"));
+    if(j.queued&&j.status==="Not applied")pills.appendChild(el("span","pill q","Queued"));
+    const ak=j.applyRoute==="needs_account"?accountKey(j):null;if(ak)pills.appendChild(el("span","pill plain",(accounts[ak]||{}).status==="ready"?"Account ready":"Needs your "+systemOf(ak)[0]+" account"));
+    if(j.applyRoute==="check")pills.appendChild(el("span","pill plain","Job-board link"));
+    main.appendChild(pills);
+    const side=el("div","side");const sel=el("select");sel.setAttribute("aria-label","Status for "+j.company+" "+j.title);
+    STATUSES.forEach(s=>{const o=el("option",null,s);o.value=s;sel.appendChild(o)});sel.value=j.status||"Not applied";sel.style.borderColor="var("+(ST_COLOR[sel.value]||"--line")+")";sel.style.color="var("+(ST_COLOR[sel.value]||"--ink")+")";
+    if(!db)sel.disabled=true;sel.onchange=()=>setStatus(j,sel.value);side.appendChild(sel);
+    if(j.status==="Not applied"){const key="u:"+j.id;const qb=actBtn(j.queued?"Unqueue":"Apply next","ghost small",key,()=>writeJobs(key,[[j,j.queued?{queued:false,approved:false}:{queued:true}]]));side.appendChild(qb)}
+    const when=el("div","when");when.textContent=j.appliedOn?("Applied "+fmtDate(j.appliedOn)):(j.foundOn?("Found "+fmtDate(j.foundOn)):"");side.appendChild(when);
+    // Unsaved typing lives in noteDrafts, so a re-render (any snapshot) never resets or scrambles the box.
+    // A draft is dropped only once a snapshot shows the same text saved and no save is pending.
+    if(j.id in noteDrafts&&noteDrafts[j.id]===(j.notes||"")&&!noteTimers[j.id])delete noteDrafts[j.id];
+    const extra=el("div","extra");const ta=el("textarea");ta.rows=1;ta.placeholder="Notes (referral, contact, follow-up date…)";ta.value=j.id in noteDrafts?noteDrafts[j.id]:(j.notes||"");ta.id="nt-"+j.id;ta.setAttribute("aria-label","Notes for "+(j.company||"this job"));if(!db)ta.disabled=true;
+    const flush=()=>{clearTimeout(noteTimers[j.id]);delete noteTimers[j.id];if(j.id in noteDrafts&&noteDrafts[j.id]!==(j.notes||""))saveNotes(j,noteDrafts[j.id])};
+    ta.addEventListener("input",()=>{noteDrafts[j.id]=ta.value;clearTimeout(noteTimers[j.id]);noteTimers[j.id]=setTimeout(flush,700)});ta.addEventListener("blur",flush);
+    extra.appendChild(ta);
+    if(Array.isArray(j.history)&&j.history.length){const d=el("details");d.appendChild(el("summary",null,"History ("+j.history.length+")"));const ol=el("ol");j.history.slice(-8).forEach(h=>ol.appendChild(el("li",null,[fmtDate(h.date),h.status,h.evidence].filter(Boolean).join(" · "))));d.appendChild(ol);extra.appendChild(d)}
+    e.append(main,side,extra);return e;
+  }
+
+  function render(){
+    [...$("laneSeg").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===state.lane?"true":"false"));
+    // Keep focus and caret in whichever text box the user is typing in across re-renders.
+    const ae=document.activeElement;const active=ae&&ae.tagName==="TEXTAREA"&&ae.id?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
+    const openDetails=new Set([...document.querySelectorAll("#needsBody details[open]")].map(d=>d.parentElement&&d.parentElement.querySelector("b")?.textContent));
+    renderRunStrip();renderTop();
+    if(ready){renderNeeds();renderQueue();
+      document.querySelectorAll("#needsBody .card").forEach(c=>{const d=c.querySelector("details");if(d&&openDetails.has(c.querySelector("b")?.textContent))d.open=true});
+      const list=$("list");list.className="list"+(state.compact?" compact":"");
+      const shown=jobs.filter(matches).sort(cmp);$("count").textContent=shown.length+" of "+jobs.length+" jobs";list.textContent="";
+      if(!shown.length)list.appendChild(el("div","empty",jobs.length?"No jobs match these filters.":"No jobs yet. The first job search fills this in."));
+      else{const frag=document.createDocumentFragment();shown.slice(0,400).forEach(j=>frag.appendChild(jobEl(j)));list.appendChild(frag);
+        if(shown.length>400)list.appendChild(el("p","count","Showing the first 400. Narrow the filters to see the rest."))}
+    }
+    if(active){const x=$(active.id);if(x){x.focus();try{x.setSelectionRange(active.s,active.e)}catch(e){}}}
+  }
+
+  function renderRuns(){
+    const box=$("runs");if(!runs.length)return;box.textContent="";
+    runs.forEach(r=>{const d=el("div","run");const top=el("div","top");top.append(el("span","kind",r.kind||"run"),el("span","date",(r.date||"")+(r.time?" "+r.time:"")));d.appendChild(top);
+      if(r.summary)d.appendChild(el("p",null,r.summary));
+      const items=r.items||[];if(items.length){const ul=el("ul");items.slice(0,15).forEach(i=>ul.appendChild(el("li",null,typeof i==="string"?i:[i.company,i.title,i.detail].filter(Boolean).join(" · "))));if(items.length>15)ul.appendChild(el("li",null,"and "+(items.length-15)+" more"));d.appendChild(ul)}
+      const probs=Array.isArray(r.problems)?r.problems:[];if(probs.length){const ul=el("ul");probs.forEach(p=>ul.appendChild(el("li","prob",String(p))));d.appendChild(ul)}
+      box.appendChild(d)});
+  }
+
+  async function setStatus(j,s){
+    const patch={status:s,statusUpdatedOn:today(),history:hist(j,s,"Changed on the HQ page")};
+    if(s==="Applied"&&!j.appliedOn)patch.appliedOn=today();if(s==="Not applied")patch.appliedOn="";
+    patch.queued=false;patch.approved=false;if(s!=="Needs you")patch.needsKind="";
+    try{await db.doc("jobs/"+j.id).update(patch);banner("")}catch(e){banner("That change didn't save. Reload the page and try again.")}
+  }
+  async function saveNotes(j,v){
+    try{await db.doc("jobs/"+j.id).update({notes:v})}
+    catch(e){banner("A note didn't save. It's still in the box; try again in a moment or reload the page.")}}
+
+  setTab(state.tab||"jobs");render();
+  (async()=>{
+    try{db=window.claude&&await window.claude.use("db")}catch(e){}
+    if(!db){$("loading").textContent="Your jobs can't load in this view. Open this page from your Claude artifacts.";return}
+    db.doc("settings/page").onSnapshot(s=>{cfg=(s&&s.exists&&s.data())||{};LANES=cfg.lanes||{"0":"Other"};REGIONS=cfg.regions||{"remote":"Remote"};
+      if(cfg.title)$("title").textContent=cfg.title;buildControls();render()},()=>{});
+    // A query returns at most 1,000 documents, so open jobs and closed jobs load as two windows of up to 1,000 each.
+    const parts={open:[],closed:[]};const got={open:false,closed:false};
+    const merge=()=>{jobs=[...parts.open,...parts.closed];ready=got.open&&got.closed;render();
+      if(ready&&(parts.open.length>=1000||parts.closed.length>=1000))banner("Showing the first 1,000 open and 1,000 closed jobs. Ask Claude to archive old closed jobs.")};
+    const fail=e=>{const m="Your jobs didn't load ("+((e&&e.code)||"error")+"). Reload the page; if it keeps happening, ask Claude to check the Job Search HQ.";const l=$("loading");if(l&&!ready)l.textContent=m;else banner(m)};
+    const sub=(key,statuses)=>db.collection("jobs").where("status","in",statuses).limit(1000).onSnapshot(snap=>{parts[key]=snap.docs.map(d=>Object.assign({id:d.id},d.data()));got[key]=true;merge()},fail);
+    sub("open",["Not applied","Needs you","Applied","Screening","Interviewing","Offer"]);
+    sub("closed",["Rejected","Passed"]);
+    db.collection("accounts").limit(1000).onSnapshot(snap=>{accounts={};snap.docs.forEach(d=>accounts[d.id]=d.data());if(ready)render()},()=>{});
+    // The latest run of each scheduled kind, separately, so a task that stopped weeks ago still shows as late.
+    RUN_KINDS.forEach(k=>db.collection("runs").where("kind","==",k).orderBy("at","desc").limit(1).onSnapshot(snap=>{lastRun[k]=snap.docs[0]?snap.docs[0].data():null;renderRunStrip()},()=>{}));
+    db.collection("runs").orderBy("at","desc").limit(40).onSnapshot(snap=>{runs=snap.docs.map(d=>d.data());renderRuns();render()},e=>banner("The activity log didn't load ("+((e&&e.code)||"error")+"). Reload to try again."));
+  })();
+})();
+</script>
