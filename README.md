@@ -15,7 +15,8 @@ An honest, mostly hands-off job search: finds openings twice a day, applies with
 3. Add the **job-hunt** plugin from the list.
 4. Install the Claude in Chrome extension and sign in with the same Claude account.
 5. Open a new chat and say **"set up my job search"**.
- After an update that changes the tracker page, say **"refresh job hunt setup"** once so your Job Search HQ picks it up.
+
+After an update that changes the tracker page, say **"refresh job hunt setup"** once so your Job Search HQ picks it up.
 
 ## Install (Claude Code)
 
