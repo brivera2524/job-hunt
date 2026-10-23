@@ -260,11 +260,11 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
   // What kind of help a Needs-you job is waiting for. Older jobs have no needsKind, so infer it from the reason.
   function needsKind(j){
     if(j.needsKind)return j.needsKind;
+    if(j.applyRoute==="manual")return "manual";
     const r=(j.needsReason||"").toLowerCase();
     if(/sign[ -]?in|log ?in|account/.test(r)||(j.applyRoute==="needs_account"&&!r))return "account";
     if(/^ready to submit/.test(r))return "review";
     if(/captcha|bot check|verification/.test(r))return "other";
-    if(j.applyRoute==="manual"||j.kit)return "manual";
     return "question";
   }
   // Open questions on a job. A job re-held after its questions were answered falls back to its reason.
@@ -447,7 +447,8 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     // Found the job on the company's own site? Then Claude can apply there instead.
     const d=el("details");d.appendChild(el("summary",null,"Found it on the company's own careers site?"));const f=el("div","found");const inp=el("input");inp.type="url";inp.placeholder="Paste the company's posting link";inp.value=foundDrafts[j.id]||"";inp.setAttribute("aria-label","Company posting link for "+j.company);inp.disabled=!db;inp.addEventListener("input",()=>{foundDrafts[j.id]=inp.value});
     f.appendChild(inp);f.appendChild(actBtn("Let Claude apply there","ghost",key,()=>{const u=(foundDrafts[j.id]||"").trim();if(!/^https?:\/\//.test(u)){banner("Paste a full link starting with https://");return}
-      const r=routeFor(u);writeJobs(key,[[j,{url:u,applyRoute:r,status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:false,history:hist(j,"Not applied","You found the company posting: queued to apply there")}]]).then(ok=>{if(ok)delete foundDrafts[j.id]})}));
+      const r=routeFor(u);if(r==="check"&&JOB_BOARDS.test(u)){banner("That's another job board. Paste the link from the company's own careers site.");return}
+      writeJobs(key,[[j,{url:u,applyRoute:r,status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:false,history:hist(j,"Not applied","You found the company posting: queued to apply there")}]]).then(ok=>{if(ok)delete foundDrafts[j.id]})}));
     d.appendChild(f);c.appendChild(d);return c;
   }
   function todoCard(j){

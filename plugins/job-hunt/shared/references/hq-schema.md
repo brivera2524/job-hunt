@@ -61,6 +61,7 @@ Fetch them with `Artifact` `action: "read"`, `paths: [...]`, `out_dir`, then dro
   source,                                  // where it was found: "greenhouse", "indeed", "himalayas", "hn", "linkedin-alert",
                                            // "google-jobs", "smartrecruiters-search", "imported", "you", ...
   listingUrl,                              // where it was first seen, when `url` was resolved to the employer's posting
+  alsoOn,                                  // other places the same job was listed (links)
   applyRoute,                              // "no_account" (Claude can submit) | "needs_account" (user signs in first)
                                            // | "check" (job-board link: find the employer posting, then re-route)
                                            // | "manual" (only on a job board whose apply flow may not be automated:

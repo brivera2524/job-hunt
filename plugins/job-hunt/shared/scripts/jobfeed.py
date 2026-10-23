@@ -5,18 +5,21 @@ against a search config. No accounts or API keys needed.
 Sources (per watchlist entry "ats"):
   greenhouse, lever, ashby, smartrecruiters,
   workable, recruitee, bamboohr, breezy,
-  rippling, gem, personio                    -> public company boards; applications usually need no account
+  rippling, gem, teamtailor, pinpoint,
+  personio                                   -> public company boards; applications usually need no account
+  Config "bulk_lists" also scans public lists of thousands more boards (github.com/kalil0321/ats-scrapers).
   workday                                    -> public career-site JSON; applying needs the user's own account
 
 Aggregators (config "aggregators"; see AGGREGATORS below). These search across many employers at once:
-  keyless:  remotive, remoteok, himalayas, jobicy, weworkremotely, hn (Hacker News "Who is hiring")
+  keyless:  smartrecruiters (search across every company), themuse, remotive, remoteok, himalayas, jobicy,
+            weworkremotely, hn (Hacker News "Who is hiring")
   free key: adzuna, usajobs, jooble     paid / free tier: serpapi (Google Jobs), jsearch (RapidAPI, Google Jobs)
   Listings that link to a company board on a supported ATS add that board to the watchlist
   automatically, so each run widens the next one.
 
 Commands:
   run     python3 jobfeed.py run --config config.json --seen seen.json --tracker tracker.json --out leads.json
-          [--no-aggregators] [--only-aggregators] [--no-grow]
+          [--no-aggregators] [--only-aggregators] [--no-grow] [--no-bulk] [--no-resolve]
   resolve python3 jobfeed.py resolve --config config.json --input connector_leads.json
           (finds each job-board listing on the employer's own board, rewrites url, and adds found boards
            to the watchlist; run and ingest do this automatically unless --no-resolve)
@@ -126,6 +129,8 @@ def board_from_url(url):
 
 def route_for_url(url):
     """no_account = Claude can submit; needs_account = user signs in first; check = job-board link, resolve first."""
+    if re.search(r"[?&](gh_jid|ashby_jid|lever-origin|lever_jid)=", url or "", re.I):
+        return "no_account"  # an ATS posting embedded on the company's own site
     for rx, route in ROUTE_HOSTS:
         if re.search(rx, url or "", re.I):
             return route
@@ -749,7 +754,9 @@ def agg_hn(cfg, opts, terms):
             if len(parts) < 2:
                 continue
             remote = bool(re.search(r"\bremote\b", first, re.I))
-            out.append(agg_job("hn", parts[0][:80], first[:200], first[:200],
+            company = re.sub(r"https?://\S+|\(.*?\)|\[.*?\]", " ", parts[0])
+            company = re.sub(r"\s+", " ", company).strip(" |-,.\u2014") or parts[0]
+            out.append(agg_job("hn", company[:80], first[:200], first[:200],
                                f"https://news.ycombinator.com/item?id={c.get('id')}", ats_links(body), body, "",
                                c.get("created_at"), remote))
     return out
@@ -992,7 +999,7 @@ def is_board_root(url):
     return not [p for p in path if p.lower() not in ("jobs", "careers", "en", "en-us", "")]
 
 
-def resolve_leads(leads, cfg, budget=120):
+def resolve_leads(leads, cfg, budget=120, also_have=()):
     """For job-board leads (apply route "check"), find the same job on the employer's own board.
     Checks watchlist boards first, then probes likely slugs. Returns (resolved count, boards to add)."""
     by_name = {}
@@ -1042,16 +1049,22 @@ def resolve_leads(leads, cfg, budget=120):
                 return l, hit, (b if probed else None)
         return l, None, None
 
-    resolved, add, have = 0, [], {board_ident(b) for b in cfg["watchlist"]}
+    resolved, add, have = 0, [], {board_ident(b) for b in cfg["watchlist"]} | set(also_have)
     with cf.ThreadPoolExecutor(16) as ex:
         for l, hit, newb in ex.map(one, todo):
             if not hit:
                 continue
-            l.setdefault("listing_url", l["url"])
+            if not l.get("listing_url"):
+                l["listing_url"] = l["url"]
             for k in ("url", "ats", "board", "id"):
                 l[k] = hit.get(k, l.get(k))
             l["title"] = hit["title"] if l.get("source") == "hn" else l["title"]
-            l["desc"] = l["desc"] if hit.get("desc") is None else (hit.get("desc") or l["desc"])
+            if hit.get("desc"):
+                l["desc"] = hit["desc"]
+            elif len(l.get("desc") or "") < 600:
+                l["desc"] = None  # enrich fetches the employer's full description
+            if hit.get("location"):
+                l["location"] = hit["location"]
             if hit.get("pay") and not l.get("pay"):
                 l["pay"] = hit["pay"]
             l["key"] = job_key(l["url"])
@@ -1069,12 +1082,14 @@ def resolve_cmd(args):
     rows = json.load(open(args.input))
     for r in rows:
         r.setdefault("desc", r.get("description") or "")
+        r.setdefault("listing_url", "")
         r["_row_id"] = r.get("id")  # the caller's id (an HQ job id) survives resolution
     n, add = resolve_leads(rows, cfg, budget=args.budget)
     for r in rows:
         r["id"] = r.pop("_row_id")
         r.pop("board", None)
-        r.pop("key", None)
+        if "key" in r:
+            r["key"] = job_key(r.get("url"))
         if r.get("desc") and not r.get("description"):
             r["description"] = r["desc"]
         r.pop("desc", None)
@@ -1214,18 +1229,20 @@ def load_state(args):
 def finish(cfg, c, args, cands, seen, tracked, tracked_titles, extra_summary):
     """Dedupe, enrich, drop too-senior, write leads + seen. Shared by run and ingest."""
     today = dt.date.today().isoformat()
-    new, by_title = [], {}
+    new, by_title, by_key = [], {}, {}
     for j in cands:
         tk = title_key(j["company"], j["title"])
         if j["key"] in tracked or j["key"] in seen or tk in tracked_titles:
             continue
-        if tk in by_title:  # same role posted in several places: keep one, note the rest
-            first = by_title[tk]
+        first = by_key.get(j["key"]) or by_title.get(tk)
+        if first is not None:  # same role posted in several places: keep one, note the rest
             if route_for_url(first["url"]) == "check" and route_for_url(j["url"]) != "check":
                 # the same job on its employer's own site beats a job-board copy
-                j["other_locations"], j["also_on"] = first["other_locations"], first.get("also_on", []) + [first.get("listing_url") or first["url"]]
+                j["other_locations"] = first["other_locations"] + ([first["location"]] if first.get("location") and first.get("location") != j.get("location") else [])
+                j["also_on"] = first.get("also_on", []) + [first.get("listing_url") or first["url"]]
                 new[new.index(first)] = j
-                by_title[tk] = j
+                by_title[title_key(first["company"], first["title"])] = by_title[tk] = j
+                by_key[first["key"]] = by_key[j["key"]] = j
                 seen[first["key"]] = today
                 continue
             if j.get("location") and j.get("location") != first.get("location"):
@@ -1236,6 +1253,7 @@ def finish(cfg, c, args, cands, seen, tracked, tracked_titles, extra_summary):
             continue
         j["other_locations"] = []
         by_title[tk] = j
+        by_key[j["key"]] = j
         new.append(j)
     with cf.ThreadPoolExecutor(12) as ex:
         new = list(ex.map(enrich, new))
@@ -1329,6 +1347,8 @@ def candidate(j, c, args):
     """Region for a job that passes the title, location and employment-type filters, else None."""
     if not passes_title(j, c):
         return None
+    if not args.include_contract and re.search(r"\b(part[- ]time|intern|internship|contract|contractor|temporary|temp|freelance|seasonal)\b", j.get("title") or "", re.I):
+        return None
     if j.get("ats") == "workday" and re.search(r"\d+ Locations", j.get("location") or ""):
         return "pending"  # resolved after the detail fetch
     region = classify_location(j, c)
@@ -1348,11 +1368,17 @@ def run(args):
     agg_jobs, agg_counts, problems = [], {}, []
     if not args.no_aggregators:
         agg_jobs, agg_counts, problems = fetch_aggregators(cfg, terms)
-    # Grow the watchlist: a listing that links to a company board we don't watch yet adds that whole board.
+    agg_cands = []
+    for j in agg_jobs:
+        region = candidate(j, c, args)
+        if region and region != "pending":
+            j["region"], j["key"] = region, job_key(j["url"])
+            agg_cands.append(j)
+    # Grow the watchlist: a fitting listing that links to a company board we don't watch yet adds that whole board.
     have = {board_ident(b) for b in cfg["watchlist"]}
     grown = []
     if not args.no_grow:
-        for j in agg_jobs:
+        for j in agg_cands:
             b = board_from_url(j["url"])
             if b and board_ident(b) not in have and (b["ats"] in NO_ACCOUNT or b["ats"] == "workday"):
                 if j.get("company"):
@@ -1389,15 +1415,11 @@ def run(args):
             wd_detail(j)
             j["region"] = classify_location(j, c) or "pending"
     cands = [j for j in cands if j["region"] != "pending"]
-    agg_cands = []
-    for j in agg_jobs:  # after the boards, so a job seen on its own board keeps the board's richer record
-        region = candidate(j, c, args)
-        if region and region != "pending":
-            j["region"], j["key"] = region, job_key(j["url"])
-            agg_cands.append(j)
+    # aggregator rows go after the boards, so a job seen on its own board keeps the board's richer record
     fresh = [j for j in agg_cands if j["key"] not in seen and j["key"] not in tracked
              and title_key(j["company"], j["title"]) not in tracked_titles]
-    resolved, found = (0, []) if args.no_resolve else resolve_leads(fresh, cfg)
+    resolved, found = (0, []) if args.no_resolve else resolve_leads(
+        fresh, cfg, also_have={board_ident(b) for b in keep_grown + bulk})
     if not args.no_grow:
         keep_grown += found
     cands += agg_cands
