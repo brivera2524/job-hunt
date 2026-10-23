@@ -1,6 +1,6 @@
 ---
 name: apply
-description: Applies to jobs for the candidate. Builds a resume tailored to each posting from the verified resume bank, drafts answers in the candidate's voice, checks everything against the dossier, fills the application in the user's Chrome, submits according to their approval setting, and updates the Job Search HQ. Also runs sign-in sessions that line up account sign-ups in Chrome tabs. Use when the user pastes a job link, or says "apply to this", "apply to my top jobs", "apply to my queue", "work through my Needs you list", "let's do sign-ins", "I'm signed in to Workday, continue", or when a scheduled application batch starts.
+description: Applies to jobs for the candidate. Builds a resume tailored to each posting from the verified resume bank, drafts answers in the candidate's voice, checks everything against the dossier, fills the application in the user's Chrome, submits according to their approval setting, and updates the Job Search HQ. For jobs only on LinkedIn Easy Apply, Indeed Apply and similar (which may not be automated), prepares an apply-yourself kit (tailored resume, pasteable answers, cover note) so the user can submit in a minute. Also runs sign-in sessions that line up account sign-ups in Chrome tabs. Use when the user pastes a job link, or says "apply to this", "apply to my top jobs", "apply to my queue", "work through my Needs you list", "prep my apply-yourself jobs", "help me apply on LinkedIn", "let's do sign-ins", "I'm signed in to Workday, continue", or when a scheduled application batch starts.
 ---
 
 # Apply
@@ -28,13 +28,14 @@ The user mostly steers from the HQ page: its buttons set `queued`, `approved`, a
 - **"I'm signed in to X" / "continue X":** set `accounts/<key>` to "ready" for that company's account (as the page's Account ready button does), then apply to its open jobs.
 - **"Submit X" or an `approved` job:** reuse the resume and answers saved in that job's `notes`. If the resume file is no longer in this session, rebuild it from the same spec, which the notes record. Show the answers if the user is live and the job isn't `approved`, then fill and submit.
 - **"Let's do sign-ins":** run a sign-in session (section 10) first, then apply to whatever it unlocked.
+- **"Prep my apply-yourself jobs" / "help me apply on LinkedIn":** prepare kits (section 11) for apply-yourself jobs that don't have one yet, best fit first. A batch run also prepares up to `prefs.dailyCap` kits after its applications; kits don't count toward the daily cap, since the user submits them.
 - **Never** apply to a posting that's already Applied or beyond (match by URL and by company + title).
 
 ## 3. Per job: read the posting
 
 Get the full description (the ATS JSON via `jobfeed.py` sources, WebFetch, or the page in Chrome). If it's closed or gone, set status Passed with evidence "Posting closed" and move on. Re-check fit against the dossier. If the real requirements make it a clear mismatch, set Passed with a one-line reason instead of applying.
 
-Route it with ats-playbook.md. For an account site, get the key with `jobfeed.py account <url>` and set `account` on the job:
+Route it with ats-playbook.md. If the only way to apply is a job board's own apply flow (LinkedIn Easy Apply, Indeed Apply, ZipRecruiter 1-click, Dice Easy Apply, Glassdoor Easy Apply, Wellfound and the like) and the employer's posting can't be found, don't fill anything there: make it an apply-yourself job and prepare its kit (section 11). For an account site, get the key with `jobfeed.py account <url>` and set `account` on the job:
 - `accounts/<key>` is "ready" (or the user just said they're signed in): open the application in Chrome. If a sign-in or create-account screen appears instead of the form, the session has ended: set `accounts/<key>` to "expired", put every queued job behind it back to "Needs you" (`needsKind: "account"`, `queued: false`, reason "Sign in to your <Company> <system> account again"), and move on.
 - `accounts/<key>` is "skipped": the user doesn't want that account. Set status Passed, evidence "Account skipped", and move on.
 - Otherwise: status "Needs you", `needsKind: "account"`, `needsReason: "Needs your <Company> <system> account"`. The page groups these by account with the buttons the user needs; don't ask about them one by one in chat.
@@ -88,7 +89,7 @@ While on the posting or the company's LinkedIn job page, note any connections or
 
 ## 9. Close out
 
-Close every tab you opened. Write a `runs` document (`kind: "Applications"`) listing submitted, held (with reasons) and skipped jobs. Report in a few lines: submitted N (companies), held M (what each needs), anything odd.
+Close every tab you opened. Write a `runs` document (`kind: "Applications"`) listing submitted, held (with reasons), kits prepared and skipped jobs. Report in a few lines: submitted N (companies), held M (what each needs), K apply-yourself kits ready on the HQ page, anything odd.
 
 ## 10. Sign-in sessions ("let's do sign-ins")
 
@@ -97,5 +98,19 @@ The user makes the accounts; Claude lines them up so it takes one sitting.
 2. For each chosen account, open one of its postings in a new Chrome tab and click through to the sign-in or create-account screen (Workday: Apply, then Apply Manually). Stop there. Never type an email, password or code, and never click "Create account" or "Sign in".
 3. Tell the user which tabs are open and to make each account, then click **Account ready** on the HQ (or say "done"). Don't drive Chrome while they're typing in it: wait for their reply.
 4. On "done", set those `accounts/<key>` to "ready" (if the page hasn't already), queue their jobs, close your tabs, and apply to them (section 2, batch).
+
+## 11. Apply-yourself kits (job-board-only jobs)
+
+Some jobs can only be applied for on a site whose terms ban bots (rules.md section 3). Claude does everything except the clicks on that site, so the user can submit in a minute or two from the HQ page.
+
+1. **Last check for the employer's posting.** Web-search "<company> careers <title>", try `jobfeed.py probe` on the company and `board --grep`. Found: switch the job to that URL (status Not applied, `applyRoute` from the URL, `queued: true`) and apply normally instead.
+2. **Read the posting** from what's available without automating the job board: the alert email text, the connector's job details, Google Jobs results, or the company's own site. Don't open LinkedIn, Glassdoor or Indeed pages with a tool to read them. If what's available is too thin to tailor from, say so in the kit's steps and tailor from the title and company.
+3. **Tailored resume**, exactly as section 4 (base for the lane, tailored, checked against the dossier, one page). Upload the PDF to the HQ's asset store: `Artifact` publish with the HQ `url`, `file_path` = the PDF, `asset: true`. The result gives the asset's `id`; store it as `kit.resumeAsset` so the page shows a download button. If the upload fails (an older HQ without the `assets` capability: setup's refresh adds it), keep `kit.resumeFile` and send the PDF with SendUserFile when the user is live.
+4. **Answers** to what that board's quick-apply form asks, from the dossier and answer bank, in the user's voice (section 5 rules, including salary and never stating the floor). Always include: phone, email, city, work authorization, sponsorship, years of experience with each main skill in the posting (as the dossier supports), the salary answer, and earliest start date. LinkedIn Easy Apply also often asks "Why are you interested?" (2–3 sentences); Indeed asks for screener answers the employer set. Anything the dossier can't answer goes in `questions` instead, with the job held under Questions until answered (section 5).
+5. **Cover note**: 60–120 words, specific to the company, voice.md, for the "message to the hiring team" box or a cover-letter field. Skip if the posting is clearly a mass listing.
+6. **Write the kit** on the job: `kit: {where, listingUrl, resumeFile, resumeAsset, coverNote, answers: [{q, a}], steps, preparedOn: today}`, status "Needs you", `needsKind: "manual"`, `needsReason` "Ready for you to submit on <where>: open, upload, paste, submit". `steps` are 3–5 short lines for that site (for example "Open the listing and click Easy Apply", "Upload the resume PDF from this card", "Paste the answers below", "Submit, then click I applied here").
+7. **Referral nudge** (section 8) applies to kits too, and matters more on LinkedIn: for Strong fits, draft a short note to a connection or the poster and put it in `notes`.
+
+When the user is live and asks to apply to one of these, show the kit in chat (answers as a list they can copy) and send the PDF; they open the listing and click through it themselves. Never fill, click or submit anything on the job board's site, even when the user is watching. Once they say they've applied (or click I applied), record it as Applied with evidence "Applied by you on <where>". check-email also picks up the board's confirmation email.
 
 Run-log documents follow hq-schema.md "Run document" exactly (`kind`, `at` ISO timestamp, `date`, `time`, `summary`, `items`, `stats`, `problems`); the HQ page orders the log by `at`.

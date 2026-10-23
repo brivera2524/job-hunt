@@ -1,6 +1,6 @@
 {
   "name": "job-hunt",
-  "description": "An honest, mostly hands-off job search: finds openings on company job boards, Workday, Indeed, ZipRecruiter and Dice twice a day, applies with a resume tailored to each posting and checked against your verified dossier, reads your email to keep the tracker current, and reviews what's working every week.",
+  "description": "An honest, mostly hands-off job search: finds openings twice a day across thousands of company job boards, job aggregators, Indeed, ZipRecruiter, Dice and your LinkedIn and other job alerts, applies with a resume tailored to each posting and checked against your verified dossier, preps one-minute apply kits for LinkedIn Easy Apply-only jobs, reads your email to keep the tracker current, and reviews what's working every week.",
   "author": {
     "name": "Job Hunt contributors"
   },

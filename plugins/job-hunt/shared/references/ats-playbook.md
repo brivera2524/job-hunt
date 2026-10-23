@@ -11,9 +11,11 @@ Practical knowledge for filling applications in the user's real Chrome through t
 | Lever (`jobs.lever.co`) | Claude fills and submits |
 | SmartRecruiters (`jobs.smartrecruiters.com`) | Claude fills; if it demands sign-in, "Needs you" with `needsKind: "account"` and `account: "smartrecruiters"` |
 | Paylocity (`recruiting.paylocity.com`) | Claude fills and submits |
-| Workable, BambooHR, JazzHR / applytojob, Breezy, Recruitee, Gem | Usually no account; try, and stop at any sign-in wall |
+| Workable, BambooHR, JazzHR / applytojob, Breezy, Recruitee, Gem, Rippling, Teamtailor, Pinpoint, Personio | Usually no account; try, and stop at any sign-in wall |
+| USAJOBS (`usajobs.gov`) | Needs the user's USAJOBS (Login.gov) account: `account: "usajobs"`, one account for every federal job. Federal applications ask for a detailed resume format and questionnaires: hold questions the dossier can't answer. |
 | Workday (`*.myworkdayjobs.com`, `*.myworkdaysite.com`), Apple (`jobs.apple.com`), iCIMS, Taleo / Oracle, SuccessFactors, UKG / UltiPro, Dayforce, ADP | Needs the user's account: "Needs you" with `needsKind: "account"` until they're signed in, then Claude fills in their session |
-| LinkedIn Easy Apply, Indeed Apply, ZipRecruiter 1-click, Dice Easy Apply | Never automate. Find the employer's own posting (company careers page or ATS) and use that. If there is none, "Needs you" with `needsKind: "other"`, saying where it's listed. |
+| LinkedIn Easy Apply, Indeed Apply, ZipRecruiter 1-click, Dice Easy Apply, Glassdoor, Wellfound, Built In | Never automate, and don't drive these sites in Chrome. Find the employer's own posting (company careers page or ATS) and use that. If there is none, it's an apply-yourself job: prepare the kit (apply section 11), `applyRoute: "manual"`, "Needs you" with `needsKind: "manual"`. |
+| Aggregators (Himalayas, The Muse, Remote OK, Remotive, Jobicy, We Work Remotely, Adzuna, Jooble, Google Jobs) | These send applicants on to the employer. Follow the listing's apply link to the employer's posting, then route that. |
 
 To find the employer's own posting from a job-board listing: look for "Apply on company site"; otherwise search the company's careers page (or run `jobfeed.py probe <company-slug>`) and match the title.
 
