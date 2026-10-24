@@ -21,6 +21,7 @@ Find the HQ. List `jobs` (all pages) and the last 14 days of `runs`. Read `setti
 - Ghosted: Applied with no status change for 30 or more days.
 - Open to-dos: Needs-you jobs by `needsKind` (accounts: how many accounts and how many jobs behind each; questions; reviews), `actionNeeded` items oldest first, and anything past `actionDue`. Note sign-ins that have waited over 7 days.
 - Pipeline health: applications per week against `settings/page.weeklyGoal`.
+- Sources: from the last 14 days of "Job search" runs, jobs kept per source (company boards, bulk lists, each aggregator, connectors, alert emails) and any source that returned nothing on several runs in a row. Apply-yourself jobs waiting, and how long the oldest has waited (LinkedIn Easy Apply jobs fill fast).
 
 ## 3. Judge, honestly
 

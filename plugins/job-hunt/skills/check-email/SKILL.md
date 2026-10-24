@@ -16,7 +16,8 @@ Find the HQ. Read `state/email` (note its version; if missing, use a 14-day look
 ## 2. Search
 
 Load the Gmail tools (ToolSearch `gmail search threads`). Search since the last check (`after:YYYY/MM/DD`, one day of overlap), excluding promotions, with two or three queries, for example:
-- `from:(greenhouse-mail.io OR ashbyhq.com OR hire.lever.co OR myworkday.com OR smartrecruiters.com OR icims.com OR paylocity.com OR workablemail.com OR gem.com OR hackerrank.com OR codesignal.com OR hirevue.com)`
+- `from:(greenhouse-mail.io OR ashbyhq.com OR hire.lever.co OR myworkday.com OR smartrecruiters.com OR icims.com OR paylocity.com OR workablemail.com OR gem.com OR recruitee.com OR bamboohr.com OR breezy.hr OR rippling.com OR teamtailor.com OR usajobs.gov OR hackerrank.com OR codesignal.com OR hirevue.com)`
+- Job-board application emails, which confirm apply-yourself jobs: `from:(jobs-noreply@linkedin.com OR indeed.com OR ziprecruiter.com OR dice.com OR glassdoor.com OR wellfound.com) ("your application" OR "application was sent" OR "you applied" OR "application submitted")`
 - `(application OR applying OR candidacy OR interview OR assessment OR "next steps" OR "move forward" OR unfortunately OR offer) -category:promotions`
 - `from:(<tracked company domains>)` in chunks
 
@@ -32,7 +33,8 @@ Skip message ids already in `state/email.processed`. For every remaining thread 
 | Recruiter outreach | a person asking for a call or availability | Status Screening; `actionNeeded` "Reply to <name> to schedule" |
 | Interview invite / scheduled | interview, calendar invite, "meet the team" | Status Interviewing; `actionNeeded` if they must pick a time |
 | Offer | offer letter, compensation details | Status Offer; `actionNeeded` "Review offer" |
-| Other / unclear | newsletters, job alerts, anything ambiguous | No change; list in the run's `problems` if it might matter |
+| Other / unclear | newsletters, anything ambiguous | No change; list in the run's `problems` if it might matter |
+| Job alert | "jobs for you", "new jobs matching", saved-search alerts | Ignore: find-jobs reads these as a job source. Don't list them in `problems`. |
 
 Match each message to a job by company (sender domain, sender name, signature, subject) and role title in the body. If a company has several tracked roles and the email names one, update that one only. If it names none, update none and list it under `problems` for the user. An email about an application the tracker doesn't have: add a job document (`source: "email"`) with the status the email implies.
 

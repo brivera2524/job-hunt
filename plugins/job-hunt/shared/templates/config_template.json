@@ -1,5 +1,5 @@
 {
- "_how_to_fill": "Setup rebuilds every value marked EXAMPLE from the user's search profile and confirms the exclusion list with the user. Regexes are case-insensitive Python regex. Keep title_include broad and let Claude judge fit; use title_exclude for seniority and the user's own dealbreakers.",
+ "_how_to_fill": "Setup rebuilds every value marked EXAMPLE from the user's search profile and confirms the exclusion list with the user. Regexes are case-insensitive Python regex. Keep title_include broad and let Claude judge fit; use title_exclude for seniority and the user's own dealbreakers. search_terms are the short role phrases the aggregators search for (5-10 from the lanes). location.metro is the user's metro as 'City, ST'. aggregators: the keyless ones are on by default; keyed ones (adzuna, usajobs, jooble, serpapi, jsearch) switch on once their keys are filled in. bulk_lists scans thousands of extra company boards from a public list each run (adds ~3-4 minutes).",
  "filters": {
   "title_include": "(EXAMPLE: support|implementation|onboarding|\\bqa\\b|quality assurance|test|analyst|automation|operations)",
   "title_exclude": "(\\b(senior|sr\\.?|staff|principal|director|head of|vp|vice president|chief|intern|internship)\\b|EXAMPLE-DEALBREAKER-WORDS)",
@@ -8,13 +8,61 @@
   "allow_local": true,
   "allow_remote_us": true,
   "us_words": "(united states|\\bus\\b|\\busa\\b|u\\.s\\.|north america|americas|\\[us\\]|nationwide)",
-  "non_us_places": "(london|dublin|\\buk\\b|united kingdom|emea|apac|europe|germany|berlin|paris|france|india|bangalore|bengaluru|hyderabad|pune|singapore|tokyo|japan|sydney|melbourne|australia|canada|toronto|vancouver|montreal|ottawa|calgary|brazil|mexico|latam|amsterdam|netherlands|spain|madrid|barcelona|poland|warsaw|krakow|israel|tel aviv|korea|seoul|ireland|portugal|lisbon|philippines|manila|argentina|colombia|chile|costa rica|zurich|switzerland|sweden|stockholm|denmark|norway|finland|estonia|romania|czech|prague|hungary|serbia|ukraine|turkey|dubai|uae|saudi|south africa|nigeria|kenya|new zealand|hong kong|taiwan|china|vietnam|indonesia|malaysia|thailand|munich|milan|italy|belgium|austria|vienna|edinburgh|manchester|\\[(gb|ca|in|de|fr|ie|nl|es|pl|br|mx|au|il|sg|jp|pt|ph|ar|co)\\]|bulgaria|croatia|zagreb|greece|serbia|slovenia|slovakia|lithuania|latvia|bucharest|sofia|belgrade|kyiv|cairo|egypt|pakistan|lagos|nairobi|cape town|johannesburg|buenos aires|uruguay|montevideo|peru|lima|guadalajara|monterrey|mexico city|sao paulo|s\u00e3o paulo|bogota|bogot\u00e1|medellin|santiago|remote \\(asia\\)|asia|amer only outside|\\[(hr|bg|ro|gr|rs|ua|za|eg|pk|ng|ke|nz|hk|tw|cn|vn|id|my|th|kr|cz|hu|se|dk|no|fi|ee|lt|lv|at|ch|be|it|uy|pe|cl|cr)\\])",
+  "non_us_places": "(london|dublin|\\buk\\b|united kingdom|emea|apac|europe|germany|berlin|paris|france|india|bangalore|bengaluru|hyderabad|pune|singapore|tokyo|japan|sydney|melbourne|australia|canada|toronto|vancouver|montreal|ottawa|calgary|brazil|mexico|latam|amsterdam|netherlands|spain|madrid|barcelona|poland|warsaw|krakow|israel|tel aviv|korea|seoul|ireland|portugal|lisbon|philippines|manila|argentina|colombia|chile|costa rica|zurich|switzerland|sweden|stockholm|denmark|norway|finland|estonia|romania|czech|prague|hungary|serbia|ukraine|turkey|dubai|uae|saudi|south africa|nigeria|kenya|new zealand|hong kong|taiwan|china|vietnam|indonesia|malaysia|thailand|munich|milan|italy|belgium|austria|vienna|edinburgh|manchester|\\[(gb|ca|in|de|fr|ie|nl|es|pl|br|mx|au|il|sg|jp|pt|ph|ar|co)\\]|bulgaria|croatia|zagreb|greece|serbia|slovenia|slovakia|lithuania|latvia|bucharest|sofia|belgrade|kyiv|cairo|egypt|pakistan|lagos|nairobi|cape town|johannesburg|buenos aires|uruguay|montevideo|peru|lima|guadalajara|monterrey|mexico city|sao paulo|são paulo|bogota|bogotá|medellin|santiago|remote \\(asia\\)|asia|amer only outside|\\[(hr|bg|ro|gr|rs|ua|za|eg|pk|ng|ke|nz|hk|tw|cn|vn|id|my|th|kr|cz|hu|se|dk|no|fi|ee|lt|lv|at|ch|be|it|uy|pe|cl|cr)\\])",
   "description_flags": "(quota|commission|upsell|cold[- ]call|security clearance|ts/sci|relocat|must reside in)",
   "max_years_required": 4,
-  "max_pay_floor": 135000
+  "max_pay_floor": 135000,
+  "max_age_days": 30
+ },
+ "search_terms": [
+  "EXAMPLE: 5-10 short role phrases from the user's lanes, e.g. support engineer, qa automation"
+ ],
+ "location": {
+  "metro": "EXAMPLE: Austin, TX",
+  "radius_miles": 30
  },
  "workday_search_terms": [
   "EXAMPLE: 5-10 short keywords from the user's lanes"
+ ],
+ "aggregators": {
+  "remotive": {},
+  "remoteok": {},
+  "himalayas": {},
+  "jobicy": {},
+  "weworkremotely": {},
+  "hn": {},
+  "smartrecruiters": {},
+  "themuse": {
+   "levels": [
+    "Entry Level",
+    "Mid Level"
+   ]
+  },
+  "adzuna": {
+   "app_id": "",
+   "app_key": ""
+  },
+  "usajobs": {
+   "api_key": "",
+   "email": ""
+  },
+  "jooble": {
+   "api_key": ""
+  },
+  "serpapi": {
+   "api_key": "",
+   "max_queries": 4
+  },
+  "jsearch": {
+   "api_key": "",
+   "max_queries": 3
+  }
+ },
+ "bulk_lists": [
+  "greenhouse",
+  "lever",
+  "ashby",
+  "recruitee"
  ],
  "watchlist": []
 }

@@ -69,6 +69,14 @@ h2{font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercas
 .card .why{font-size:.84rem;color:var(--muted);margin:0}
 .card .chk{font-size:.8rem;color:var(--muted);display:flex;gap:6px;align-items:center}
 .more{font-size:.84rem;color:var(--muted)}
+/* apply-yourself kits */
+.kit .ans{display:flex;flex-direction:column;gap:3px;margin-top:2px}
+.kit .ans .ql{font-size:.8rem;font-weight:600;color:var(--muted)}
+.kit .ans .row{display:flex;gap:6px;align-items:flex-start}
+.kit .ans textarea{min-height:34px;flex:1;background:var(--soft)}
+.kit .steps{margin:0;padding-left:18px;font-size:.84rem}
+.kit .found{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.kit .found input{flex:1 1 220px;min-width:0;font:inherit;font-size:.84rem;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 /* queue */
 .queue{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .queue ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:.88rem}
@@ -201,6 +209,7 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     [/adp\.com\/.*?[?&]cid=([0-9a-f-]+)/i,m=>"adp:"+m[1].toLowerCase()],
     [/myjobs\.adp\.com\/([^/?#]+)/i,m=>"adp:"+m[1].toLowerCase()],
     [/adp\.com\/.*?[?&]c=(\d+)/i,m=>"adp:"+m[1]],
+    [/usajobs\.gov/i,()=>"usajobs"],
     [/smartrecruiters\.com/i,()=>"smartrecruiters"]];
   const SYSTEMS={workday:["Workday","Open a posting, click Apply, then Apply Manually, then Create Account. Each company's Workday is a separate account."],
     apple:["Apple ID","Sign in at jobs.apple.com with your Apple ID. One sign-in covers every Apple job."],
@@ -212,8 +221,13 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     dayforce:["Dayforce","Open a posting, click Apply, and create an account."],
     adp:["ADP","Open a posting, click Apply, and create an account."],
     smartrecruiters:["SmartRecruiters","One SmartRecruiters account works for every company that uses it."],
+    usajobs:["USAJOBS","Sign in at usajobs.gov with Login.gov and build your USAJOBS profile once. One account covers every federal job."],
     site:["Account","Open a posting, click Apply, and create an account."]};
-  const JOB_BOARDS=/linkedin\.com|indeed\.com|ziprecruiter\.com|dice\.com|glassdoor\.com|builtin\.com/i;
+  const JOB_BOARDS=/linkedin\.com|indeed\.com|ziprecruiter\.com|dice\.com|glassdoor\.com|builtin[a-z]*\.com|wellfound\.com|simplyhired\.com|monster\.com|joinhandshake\.com|welcometothejungle\.com|otta\.com|google\.com|remotive\.com|remoteok\.(com|io)|himalayas\.app|jobicy\.com|weworkremotely\.com|ycombinator\.com|adzuna\.|jooble\.org/i;
+  // Mirrors ROUTE_HOSTS in jobfeed.py: where a pasted employer link leads.
+  const NO_ACCOUNT_HOSTS=/greenhouse\.io|lever\.co|ashbyhq\.com|smartrecruiters\.com|paylocity\.com|workable\.com|bamboohr\.com|applytojob\.com|breezy\.hr|recruitee\.com|jobs\.gem\.com|ats\.rippling\.com|jobs\.personio\.|pinpointhq\.com|teamtailor\.com/i;
+  const ACCOUNT_HOSTS=/myworkdayjobs\.com|myworkdaysite\.com|jobs\.apple\.com|icims\.com|taleo\.net|oraclecloud\.com|successfactors|ultipro\.com|ukg\.|dayforcehcm\.com|adp\.com|usajobs\.gov/i;
+  const routeFor=u=>NO_ACCOUNT_HOSTS.test(u)?"no_account":ACCOUNT_HOSTS.test(u)?"needs_account":"check";
   let LANES={}; let REGIONS={};
   let jobs=[],runs=[],lastRun={},accounts={},db=null,ready=false,cfg={};
   const drafts={};const noteDrafts={};const noteTimers={};const busy=new Set();
@@ -246,6 +260,7 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
   // What kind of help a Needs-you job is waiting for. Older jobs have no needsKind, so infer it from the reason.
   function needsKind(j){
     if(j.needsKind)return j.needsKind;
+    if(j.applyRoute==="manual")return "manual";
     const r=(j.needsReason||"").toLowerCase();
     if(/sign[ -]?in|log ?in|account/.test(r)||(j.applyRoute==="needs_account"&&!r))return "account";
     if(/^ready to submit/.test(r))return "review";
@@ -309,13 +324,14 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
   // ---------- needs you ----------
   function needsGroups(){
     const open=jobs.filter(j=>OPEN.has(j.status||"Not applied"));
-    const acct={},questions={},review=[],other=[];
+    const acct={},questions={},review=[],other=[],manual=[];
     open.forEach(j=>{
       if(j.status==="Needs you"){
         const k=needsKind(j);
         if(k==="account"){const key=groupKey(j);(acct[key]=acct[key]||[]).push(j)}
         else if(k==="review")review.push(j);
         else if(k==="question"){const co=j.company||"Unknown company";(questions[co]=questions[co]||[]).push(j)}
+        else if(k==="manual")manual.push(j);
         else other.push(j);
       }else if(j.applyRoute==="needs_account"&&!j.queued){
         // Not tried yet, but it will need a sign-in: surface the account now so sign-ups can be batched.
@@ -325,7 +341,8 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     const todos=jobs.filter(j=>j.actionNeeded).sort((a,b)=>(a.actionDue||"9999").localeCompare(b.actionDue||"9999"));
     const acctList=Object.entries(acct).map(([key,js])=>({key,jobs:js.sort((a,b)=>fitRank(a)-fitRank(b)),best:Math.min(...js.map(fitRank))}))
       .sort((a,b)=>b.jobs.length-a.jobs.length||a.best-b.best||String(a.jobs[0].company||"").localeCompare(String(b.jobs[0].company||"")));
-    return {acct:acctList,questions:Object.entries(questions),review,other,todos};
+    manual.sort((a,b)=>fitRank(a)-fitRank(b)||String(a.kit&&a.kit.preparedOn?0:1).localeCompare(String(b.kit&&b.kit.preparedOn?0:1)));
+    return {acct:acctList,questions:Object.entries(questions),review,other,manual,todos};
   }
   function fitMix(js){const m=el("span","mix");const c={};js.forEach(j=>c[j.fit||"Possible"]=(c[j.fit||"Possible"]||0)+1);
     m.append("Opens "+js.length+" job"+(js.length>1?"s":"")+": ");FITS.filter(f=>c[f]).forEach((f,i)=>{if(i)m.append(" · ");m.appendChild(el("b","fit-"+f,c[f]+" "+f))});return m}
@@ -401,6 +418,39 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     acts.appendChild(actBtn("Skip","ghost",key,()=>writeJobs(key,[[j,{status:"Passed",statusUpdatedOn:today(),needsKind:"",queued:false,approved:false,history:hist(j,"Passed","Skipped from the Needs-you list")}]])));
     c.appendChild(acts);return c;
   }
+  // Copy text to the clipboard; where the browser refuses (some embedded views do), select it for Ctrl+C instead.
+  async function copyText(txt,ta,btn){
+    let ok=false;try{await navigator.clipboard.writeText(txt);ok=true}catch(e){}
+    if(!ok&&ta){ta.focus();ta.select();try{ok=document.execCommand("copy")}catch(e){}}
+    const old=btn.textContent;btn.textContent=ok?"Copied":"Press Ctrl+C";setTimeout(()=>{btn.textContent=old},1400);
+  }
+  const foundDrafts={};
+  // A job Claude may not apply to (LinkedIn Easy Apply, Indeed Apply and the like): everything prepared, the user submits.
+  function kitCard(j){
+    const key="k:"+j.id;const k=j.kit||{};const c=el("div","card kit");const hd=el("div","hd");const b=el("b");b.appendChild(link(k.listingUrl||j.url,j.company+" · "+j.title));hd.appendChild(b);
+    if(j.fit)hd.appendChild(el("span","pill fit-"+j.fit,j.fit));hd.appendChild(el("span","sys",k.where||"Job board"));c.appendChild(hd);
+    if(j.needsReason)c.appendChild(el("p","why",j.needsReason));
+    const top=el("div","acts");const open=link(k.listingUrl||j.url,"Open listing ↗");open.className="btn";top.appendChild(open);
+    if(k.resumeAsset||k.resumeUrl){const r=link(k.resumeAsset?"/_blob/"+k.resumeAsset:k.resumeUrl,"Resume PDF ↓");r.className="btn ghost";if(k.resumeFile)r.setAttribute("download",k.resumeFile);top.appendChild(r)}
+    c.appendChild(top);
+    if(!k.preparedOn){c.appendChild(el("p","tip","Claude hasn't prepared this one yet. Say \"prep my apply-yourself jobs\" and the next run builds the resume and answers."))}
+    else if(k.resumeFile&&!k.resumeAsset&&!k.resumeUrl)c.appendChild(el("p","tip","Resume: "+k.resumeFile+" (sent to you in chat when it was prepared)."));
+    if(Array.isArray(k.steps)&&k.steps.length){const ol=el("ol","steps");k.steps.forEach(s=>ol.appendChild(el("li",null,s)));c.appendChild(ol)}
+    const items=[...(k.coverNote?[{q:"Cover note / message to the hiring team",a:k.coverNote}]:[]),...(Array.isArray(k.answers)?k.answers:[])];
+    items.forEach((it,i)=>{const box=el("div","ans");box.appendChild(el("span","ql",it.q));const row=el("div","row");const ta=el("textarea");ta.readOnly=true;ta.value=it.a||"";ta.rows=Math.min(6,Math.max(1,Math.ceil((it.a||"").length/90)));ta.id="kit-"+j.id+"-"+i;ta.setAttribute("aria-label",it.q);
+      const cb=el("button","btn ghost small","Copy");cb.type="button";cb.onclick=()=>copyText(ta.value,ta,cb);row.append(ta,cb);box.appendChild(row);c.appendChild(box)});
+    const acts=el("div","acts");
+    acts.appendChild(actBtn("I applied","",key,()=>writeJobs(key,[[j,{status:"Applied",appliedOn:today(),statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:false,approved:false,history:hist(j,"Applied","Applied by you"+(k.where?" ("+k.where+")":""))}]])));
+    if(items.length>1){const all=el("button","btn ghost","Copy all answers");all.type="button";all.onclick=()=>copyText(items.map(it=>it.q+"\n"+it.a).join("\n\n"),null,all);acts.appendChild(all)}
+    acts.appendChild(actBtn("Skip","ghost",key,()=>writeJobs(key,[[j,{status:"Passed",statusUpdatedOn:today(),needsKind:"",queued:false,approved:false,history:hist(j,"Passed","Skipped from Apply yourself")}]])));
+    c.appendChild(acts);
+    // Found the job on the company's own site? Then Claude can apply there instead.
+    const d=el("details");d.appendChild(el("summary",null,"Found it on the company's own careers site?"));const f=el("div","found");const inp=el("input");inp.type="url";inp.placeholder="Paste the company's posting link";inp.value=foundDrafts[j.id]||"";inp.setAttribute("aria-label","Company posting link for "+j.company);inp.disabled=!db;inp.addEventListener("input",()=>{foundDrafts[j.id]=inp.value});
+    f.appendChild(inp);f.appendChild(actBtn("Let Claude apply there","ghost",key,()=>{const u=(foundDrafts[j.id]||"").trim();if(!/^https?:\/\//.test(u)){banner("Paste a full link starting with https://");return}
+      const r=routeFor(u);if(r==="check"&&JOB_BOARDS.test(u)){banner("That's another job board. Paste the link from the company's own careers site.");return}
+      writeJobs(key,[[j,{url:u,applyRoute:r,status:"Not applied",statusUpdatedOn:today(),needsKind:"",needsReason:"",queued:true,approved:false,history:hist(j,"Not applied","You found the company posting: queued to apply there")}]]).then(ok=>{if(ok)delete foundDrafts[j.id]})}));
+    d.appendChild(f);c.appendChild(d);return c;
+  }
   function todoCard(j){
     const key="t:"+j.id;const c=el("div","card");const hd=el("div","hd");const b=el("b");b.appendChild(link(j.url,j.company+" · "+j.title));hd.appendChild(b);hd.appendChild(el("span","sys",j.status));c.appendChild(hd);
     c.appendChild(el("p","why",j.actionNeeded+(j.actionDue?" (by "+fmtDate(j.actionDue)+")":"")));
@@ -414,6 +464,7 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
       ["acct","Sign-ins",g.acct.length?g.acct.length+" account"+(g.acct.length>1?"s":"")+" · "+acctJobs+" jobs":"",g.acct.length],
       ["q","Questions",qJobs?String(qJobs):"",qJobs],
       ["review","Ready to submit",String(g.review.length),g.review.length],
+      ["manual","Apply yourself",String(g.manual.length),g.manual.length],
       ["other","Other blocks",String(g.other.length),g.other.length],
       ["todo","To-dos",String(g.todos.length),g.todos.length]].filter(s=>s[3]);
     box.hidden=!ready||!sections.length;if(box.hidden)return;
@@ -430,6 +481,9 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
       g.questions.forEach(x=>sec.appendChild(questionCard(x)));
     }else if(state.needsTab==="review"){
       sec.appendChild(el("p","lead","Filled and checked against your dossier, waiting for your OK."));g.review.forEach(j=>sec.appendChild(simpleCard(j,"review")));
+    }else if(state.needsTab==="manual"){
+      sec.appendChild(el("p","lead","Jobs only listed where Claude isn't allowed to apply for you (LinkedIn Easy Apply, Indeed Apply and the like). Claude prepared the resume and answers: open the listing, paste, submit, then click I applied."));
+      g.manual.forEach(j=>sec.appendChild(kitCard(j)));
     }else if(state.needsTab==="other"){
       sec.appendChild(el("p","lead","Things Claude can't do for you, like a CAPTCHA or a job only on a job board. Do it and click Done to queue the job again, or apply yourself and say so."));g.other.forEach(j=>sec.appendChild(simpleCard(j,"other")));
     }else{
@@ -486,6 +540,7 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     if(j.queued&&j.status==="Not applied")pills.appendChild(el("span","pill q","Queued"));
     const ak=j.applyRoute==="needs_account"?accountKey(j):null;if(ak)pills.appendChild(el("span","pill plain",(accounts[ak]||{}).status==="ready"?"Account ready":"Needs your "+systemOf(ak)[0]+" account"));
     if(j.applyRoute==="check")pills.appendChild(el("span","pill plain","Job-board link"));
+    if(j.applyRoute==="manual")pills.appendChild(el("span","pill plain","Apply yourself"+(j.kit&&j.kit.where?": "+j.kit.where:"")));
     main.appendChild(pills);
     const side=el("div","side");const sel=el("select");sel.setAttribute("aria-label","Status for "+j.company+" "+j.title);
     STATUSES.forEach(s=>{const o=el("option",null,s);o.value=s;sel.appendChild(o)});sel.value=j.status||"Not applied";sel.style.borderColor="var("+(ST_COLOR[sel.value]||"--line")+")";sel.style.color="var("+(ST_COLOR[sel.value]||"--ink")+")";
@@ -508,6 +563,7 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
     // Keep focus and caret in whichever text box the user is typing in across re-renders.
     const ae=document.activeElement;const active=ae&&ae.tagName==="TEXTAREA"&&ae.id?{id:ae.id,s:ae.selectionStart,e:ae.selectionEnd}:null;
     const openDetails=new Set([...document.querySelectorAll("#needsBody details[open]")].map(d=>d.parentElement&&d.parentElement.querySelector("b")?.textContent));
+    const ae2=document.activeElement;const activeInput=ae2&&ae2.tagName==="INPUT"&&ae2.closest&&ae2.closest(".kit")?ae2.getAttribute("aria-label"):null;
     renderRunStrip();renderTop();
     if(ready){renderNeeds();renderQueue();
       document.querySelectorAll("#needsBody .card").forEach(c=>{const d=c.querySelector("details");if(d&&openDetails.has(c.querySelector("b")?.textContent))d.open=true});
@@ -518,6 +574,7 @@ textarea:focus,select:focus,input:focus,button:focus-visible,a:focus-visible{out
         if(shown.length>400)list.appendChild(el("p","count","Showing the first 400. Narrow the filters to see the rest."))}
     }
     if(active){const x=$(active.id);if(x){x.focus();try{x.setSelectionRange(active.s,active.e)}catch(e){}}}
+    if(activeInput){const x=[...document.querySelectorAll(".kit input")].find(i=>i.getAttribute("aria-label")===activeInput);if(x){x.focus();const d=x.closest("details");if(d)d.open=true}}
   }
 
   function renderRuns(){

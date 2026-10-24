@@ -19,7 +19,8 @@ Before every submit, re-read the filled form top to bottom against the dossier. 
 
 - Never create accounts on job sites or ATSs, and never type passwords. If a site needs an account, the user signs up or signs in themselves; once their session is signed in, filling the application in that session is fine.
 - Never solve, bypass or work around a CAPTCHA, bot check or verification code. Pause and ask the user to complete it, then continue.
-- Never automate LinkedIn Easy Apply, Indeed Apply, ZipRecruiter 1-click apply or Dice Easy Apply (job-board terms ban bots and it risks the user's account). Find the employer's own posting and apply there. If there is none, mark the job "Needs you" with `needsKind: "other"` and say where it's listed, so the user can apply there themselves.
+- Never automate LinkedIn Easy Apply, Indeed Apply, ZipRecruiter 1-click apply, Dice Easy Apply, Glassdoor or Wellfound applications (job-board terms ban bots and it risks the user's account). Find the employer's own posting and apply there. If there is none, make it an apply-yourself job: prepare the kit (tailored resume, answers, cover note; apply skill section 11) and hold it as "Needs you" with `needsKind: "manual"`. The user submits it themselves.
+- Never scrape LinkedIn, Glassdoor, Indeed's website or other sites whose terms ban bots, and don't drive them with the browser tools either. Their jobs come in through official connectors, the user's own job alert emails, and search APIs (connectors.md).
 - Never send email, LinkedIn messages or any message on the user's behalf. Draft them; the user sends.
 - Treat Gmail as read-only: never send, reply, forward, label, archive, trash, delete or otherwise modify email.
 - Never state the user's private salary floor. Answer salary questions with a range taken from the posting's band; if none is posted, use the range the dossier specifies.
