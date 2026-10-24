@@ -1068,6 +1068,7 @@ def resolve_leads(leads, cfg, budget=120, also_have=()):
             if hit.get("pay") and not l.get("pay"):
                 l["pay"] = hit["pay"]
             l["key"] = job_key(l["url"])
+            l["resolved"] = True  # its location came from the employer's posting: finish re-checks the region
             resolved += 1
             if newb and board_ident(newb) not in have:
                 newb["via"], newb["added"] = l.get("source", "resolve"), dt.date.today().isoformat()
@@ -1264,6 +1265,12 @@ def finish(cfg, c, args, cands, seen, tracked, tracked_titles, extra_summary):
     oldest = (dt.date.today() - dt.timedelta(days=max_age)).isoformat() if max_age else ""
     for j in new:
         seen[j["key"]] = today
+        if j.get("resolved") and j.get("ats") != "workday":
+            region = classify_location(j, c)
+            if not region:
+                dropped_loc += 1
+                continue
+            j["region"] = region
         if oldest and re.match(r"\d{4}-\d{2}-\d{2}$", j.get("posted") or "") and j["posted"] < oldest:
             too_old += 1
             continue
@@ -1288,6 +1295,22 @@ def finish(cfg, c, args, cands, seen, tracked, tracked_titles, extra_summary):
                         also_on=j.get("also_on", []), via=j.get("via", ""),
                         flags=flags, description=j["desc"][: args.desc_chars]))
     out.sort(key=lambda r: (r["region"] != c["local_label"], r["company"].lower(), r["title"]))
+    # A company posting dozens of near-identical openings (call centres, staffing firms, sales agencies)
+    # shouldn't bury everything else: keep the newest few per company, local ones first.
+    cap = f.get("max_per_company", 4)
+    capped = {}
+    if cap:
+        by_co = {}
+        for r in sorted(out, key=lambda r: (r["region"] != c["local_label"], r.get("posted") or "0000"), reverse=False):
+            by_co.setdefault(re.sub(r"[^a-z0-9]", "", r["company"].lower()), []).append(r)
+        keep = set()
+        for co, rows in by_co.items():
+            rows.sort(key=lambda r: (r["region"] != c["local_label"], "".join(chr(255 - ord(ch)) for ch in (r.get("posted") or ""))))
+            for r in rows[:cap]:
+                keep.add(id(r))
+            if len(rows) > cap:
+                capped[rows[0]["company"]] = len(rows) - cap
+        out = [r for r in out if id(r) in keep]
     prev = []
     if getattr(args, "append", False):
         try:
@@ -1298,6 +1321,7 @@ def finish(cfg, c, args, cands, seen, tracked, tracked_titles, extra_summary):
     json.dump(seen, open(args.seen, "w"), indent=0, sort_keys=True)
     summary = dict(date=today, matched_filters=len(cands), already_tracked_or_seen=len(cands) - len(new),
                    dropped_as_too_senior=too_senior, dropped_as_older_than_max_age=too_old,
+                   dropped_over_per_company_cap=sum(capped.values()), capped_companies=capped,
                    dropped_location_after_detail=dropped_loc, new_leads=len(out))
     summary.update(extra_summary)
     print(json.dumps(summary, indent=1))
@@ -1325,7 +1349,7 @@ def bulk_boards(cfg):
             if not slug:
                 continue
             name = (row.get("name") or slug).strip()
-            if re.search(r"\b(test|testing|sandbox|demo|staging|training environment|candidate \d)\b", name, re.I):
+            if re.search(r"sandbox|\b(test|testing|demo|staging|training environment|candidate \d)\b", f"{name} {slug}", re.I):
                 continue  # vendor test accounts that show up in the public lists
             b = {"ats": ats, "slug": slug, "company": name, "bulk": True}
             if board_ident(b) not in have:
